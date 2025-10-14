@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity(name="users")
 public class UserEntity implements Serializable {
@@ -47,6 +48,16 @@ public class UserEntity implements Serializable {
 
     @Column(length = 42, unique = true)
     private String walletAddress;
+
+
+
+    // ✅ Code OTP à 6 chiffres
+    @Column(length = 6)
+    private String verificationCode;
+
+    // ✅ Date d'expiration du code OTP
+    @Column
+    private LocalDateTime verificationCodeExpiresAt;
 
 
 
@@ -201,7 +212,21 @@ public class UserEntity implements Serializable {
         this.emailVerficationStatus = emailVerficationStatus;
     }
 
+    public String getVerificationCode() {
+        return verificationCode;
+    }
 
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public LocalDateTime getVerificationCodeExpiresAt() {
+        return verificationCodeExpiresAt;
+    }
+
+    public void setVerificationCodeExpiresAt(LocalDateTime verificationCodeExpiresAt) {
+        this.verificationCodeExpiresAt = verificationCodeExpiresAt;
+    }
 
 
 }
