@@ -41,7 +41,7 @@ public class WebSecurity {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
-                        .requestMatchers("/users/verify-email").permitAll()
+                        .requestMatchers("/users/verify-otp").permitAll()
                         .requestMatchers("/users/resend-verification").permitAll()
                         .anyRequest().authenticated()
                 )
