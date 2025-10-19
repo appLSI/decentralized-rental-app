@@ -12,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -20,13 +21,15 @@ public class WebSecurity {
     private final UserDetailsService userService;
     private final PasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     public WebSecurity(UserDetailsService userService,
                        PasswordEncoder bCryptPasswordEncoder,
-                       AuthenticationConfiguration authenticationConfiguration) {
+                       AuthenticationConfiguration authenticationConfiguration, CorsConfigurationSource corsConfigurationSource) {
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.authenticationConfiguration = authenticationConfiguration;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
@@ -41,7 +44,7 @@ public class WebSecurity {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
-                        .requestMatchers("/users/verify-email").permitAll()
+                        .requestMatchers("/users/verify-otp").permitAll()
                         .requestMatchers("/users/resend-verification").permitAll()
                         .anyRequest().authenticated()
                 )
