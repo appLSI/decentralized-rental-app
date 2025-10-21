@@ -1,5 +1,5 @@
 # ---------------------------------------------------------
-# 🧩 Stage 1 — Build and compile smart contracts
+#  Stage 1 — Build and compile smart contracts
 # ---------------------------------------------------------
 FROM node:22.20.0-alpine AS builder
 # Using Node 22.20.0 as specified by the developer
@@ -18,7 +18,7 @@ RUN npx hardhat compile
 
 
 # ---------------------------------------------------------
-# 🧩 Stage 2 — Run Hardhat local blockchain node
+# Stage 2 — Run Hardhat local blockchain node
 # ---------------------------------------------------------
 FROM node:22.20.0-alpine
 
