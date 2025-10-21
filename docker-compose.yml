@@ -1,12 +1,36 @@
 version: "3.9"
 
 services:
-  backend-service:
-    build: ./backend/auth_micro_service
+  auth-service:
+    build:
+      context: ./backend/auth_micro_service
+      dockerfile: Dockerfile
     container_name: auth-service
     ports:
       - "8080:8080"
-    restart: always
+  
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - auth-service
+    networks:
+      - app-network
+
+  blockchain:
+    build:
+      context: ./blockchain
+      dockerfile: Dockerfile
+    container_name: blockchain
+    ports:
+      - "8545:8545"
     networks:
       - app-network
 
