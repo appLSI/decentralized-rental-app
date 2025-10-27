@@ -16,6 +16,7 @@ COPY public/ ./public/
 COPY index.html ./
 COPY vite.config.ts ./
 COPY tsconfig.json ./
+COPY tailwind.config.ts ./
 COPY postcss.config.js ./
 
 # Build the application
