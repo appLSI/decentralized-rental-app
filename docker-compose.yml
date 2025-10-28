@@ -31,7 +31,7 @@ services:
 
   blockchain:
     build:
-      context: ./blockchain/blockchain-auth
+      context: ./blockchain
       dockerfile: Dockerfile
     container_name: blockchain
     ports:
