@@ -6,16 +6,18 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import LandingPage from "./pages/Login"; // Your LandingPage
+import LandingPage from "./pages/Login";
 import Dashboard from "./pages/Statistique";
 import BrowseProperties from "./pages/BrowseProperties";
 import MyProperties from "./pages/MyProperties";
-
-import RentalHistory from "./pages/RentalHistory";
+import SignUp from "./pages/SignUp";
+import SignIn from "./pages/SignIn";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AddProperty from "./pages/addPropertyPage";
+import PropertyDetails from "./pages/PropertyDetails";
+import VerifyOtp from "./pages/VerifyOtp";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,10 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/verify-otp" element={<VerifyOtp />} />
               <Route
                 path="/browse"
                 element={
@@ -53,20 +59,11 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              
               <Route
                 path="/add-property"
                 element={
                   <ProtectedRoute>
                     <AddProperty />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/rental-history"
-                element={
-                  <ProtectedRoute>
-                    <RentalHistory />
                   </ProtectedRoute>
                 }
               />
@@ -83,6 +80,15 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Add PropertyDetails route */}
+              <Route
+                path="/property/:id"
+                element={
+                  <ProtectedRoute>
+                    <PropertyDetails />
                   </ProtectedRoute>
                 }
               />

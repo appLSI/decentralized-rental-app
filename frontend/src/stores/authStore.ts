@@ -74,12 +74,15 @@ export const useAuthStore = create<AuthState>()(
 
           // Handle 403 Forbidden - this could be either unverified email OR wrong credentials
           if (response.status === 403) {
-            const errorMessage = errorData.error || errorData.message || "Login failed";
-            
+            const errorMessage =
+              errorData.error || errorData.message || "Login failed";
+
             // Check the error message to determine the actual cause
-            if (errorMessage.toLowerCase().includes("verify") || 
-                errorMessage.toLowerCase().includes("email") ||
-                errorMessage.toLowerCase().includes("vérifier")) {
+            if (
+              errorMessage.toLowerCase().includes("verify") ||
+              errorMessage.toLowerCase().includes("email") ||
+              errorMessage.toLowerCase().includes("vérifier")
+            ) {
               throw new Error("Please verify your email before logging in");
             } else {
               // If it's not a verification error, assume it's wrong credentials
@@ -89,7 +92,11 @@ export const useAuthStore = create<AuthState>()(
 
           // Handle other error statuses
           if (!response.ok) {
-            throw new Error(errorData.error || errorData.message || `Login failed: ${response.status}`);
+            throw new Error(
+              errorData.error ||
+                errorData.message ||
+                `Login failed: ${response.status}`
+            );
           }
 
           const authHeader = response.headers.get("Authorization");
@@ -134,7 +141,9 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (response.status === 400 || response.status === 409) {
-            throw new Error(errorData.error || errorData.message || "Email already exists");
+            throw new Error(
+              errorData.error || errorData.message || "Email already exists"
+            );
           }
 
           if (response.status === 201) {
@@ -142,7 +151,11 @@ export const useAuthStore = create<AuthState>()(
             return true;
           }
 
-          throw new Error(errorData.error || errorData.message || `Registration failed: ${response.status}`);
+          throw new Error(
+            errorData.error ||
+              errorData.message ||
+              `Registration failed: ${response.status}`
+          );
         } catch (error: any) {
           set({ isLoading: false });
           throw new Error(error.message);
@@ -166,7 +179,9 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (!response.ok) {
-            throw new Error(errorData.message || errorData.error || "Invalid OTP code");
+            throw new Error(
+              errorData.message || errorData.error || "Invalid OTP code"
+            );
           }
 
           set({ isLoading: false });
@@ -180,9 +195,12 @@ export const useAuthStore = create<AuthState>()(
       resendOtp: async (email) => {
         set({ isLoading: true });
         try {
-          const response = await fetch(`${API_BASE}/users/resend-otp?email=${encodeURIComponent(email)}`, {
-            method: "POST",
-          });
+          const response = await fetch(
+            `${API_BASE}/users/resend-otp?email=${encodeURIComponent(email)}`,
+            {
+              method: "POST",
+            }
+          );
 
           let errorData = null;
           try {
@@ -192,7 +210,9 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (!response.ok) {
-            throw new Error(errorData.error || errorData.message || "Failed to resend OTP");
+            throw new Error(
+              errorData.error || errorData.message || "Failed to resend OTP"
+            );
           }
 
           set({ isLoading: false });
@@ -239,14 +259,17 @@ export const useAuthStore = create<AuthState>()(
       name: "auth-storage",
       partialize: (state) => ({
         token: state.token,
-        user: state.user ? { userId: state.user.userId, email: state.user.email } : null,
+        user: state.user
+          ? { userId: state.user.userId, email: state.user.email }
+          : null,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => {
         console.log("Rehydrating auth storage...");
         return async (state, error) => {
           if (error) console.error("Rehydration error:", error);
-          else if (state?.user?.userId) await state.fetchUserProfile(state.user.userId);
+          else if (state?.user?.userId)
+            await state.fetchUserProfile(state.user.userId);
         };
       },
     }
