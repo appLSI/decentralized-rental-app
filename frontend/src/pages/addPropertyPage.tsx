@@ -18,11 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, ArrowRight, ArrowLeftIcon } from "lucide-react";
 import { PROPERTY_CATEGORIES, AMENITIES } from "@/lib/constants";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export default function AddProperty() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -51,21 +53,49 @@ export default function AddProperty() {
     }));
   };
 
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep((prev) => Math.min(prev + 1, 4));
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        if (!formData.title || !formData.category || !formData.description) {
+          alert("Please fill in all required fields in Basic Information");
+          return false;
+        }
+        return true;
+      case 2:
+        if (!formData.rentPrice) {
+          alert("Please set the rental price");
+          return false;
+        }
+        if (parseFloat(formData.rentPrice) <= 0) {
+          alert("Rent price must be greater than 0");
+          return false;
+        }
+        return true;
+      case 3:
+        if (!formData.imageUrl) {
+          alert("Please add at least one property image");
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-      !formData.title ||
-      !formData.description ||
-      !formData.rentPrice ||
-      !formData.imageUrl
-    ) {
-      alert("Please fill in all required fields");
-      return;
-    }
-
-    if (parseFloat(formData.rentPrice) <= 0) {
-      alert("Rent price must be greater than 0");
+    if (!validateStep(4)) {
       return;
     }
 
@@ -92,6 +122,14 @@ export default function AddProperty() {
     "https://images.unsplash.com/photo-1513584684374-8bab748fbf90?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
   ];
 
+  // Progress Steps
+  const steps = [
+    { number: 1, title: "Basic Info" },
+    { number: 2, title: "Pricing" },
+    { number: 3, title: "Images" },
+    { number: 4, title: "Details" },
+  ];
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -106,83 +144,228 @@ export default function AddProperty() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-6 md:space-y-8">
-          {/* Main content grid - 2 columns on large screens, 1 column on small screens */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
+        {/* Progress Steps */}
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center space-x-4 md:space-x-8">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                    currentStep >= step.number
+                      ? "bg-[#edbf6d] border-[#edbf6d] text-[#1b2e3f]"
+                      : "border-gray-300 text-gray-300"
+                  } font-semibold transition-all duration-300`}
+                >
+                  {step.number}
+                </div>
+                <span
+                  className={`ml-2 font-medium ${
+                    currentStep >= step.number
+                      ? "text-[#edbf6d]"
+                      : "text-gray-300"
+                  }`}
+                >
+                  {step.title}
+                </span>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`w-8 h-0.5 mx-4 ${
+                      currentStep > step.number ? "bg-[#edbf6d]" : "bg-gray-300"
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
-            {/* Left Column - Form Sections */}
-            <div className="space-y-6 md:space-y-8">
-              {/* Basic Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Basic Information</CardTitle>
-                  <CardDescription>
-                    Provide the essential details about your property
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Property Title *</Label>
-                      <Input
-                        id="title"
-                        placeholder="e.g., Modern Downtown Apartment"
-                        value={formData.title}
-                        onChange={(e) => handleInputChange("title", e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category *</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) =>
-                          handleInputChange("category", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select property type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PROPERTY_CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
+        <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+          {/* Step 1: Basic Information */}
+          {currentStep === 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+                <CardDescription>
+                  Provide the essential details about your property
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description *</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Describe your property, its features, and what makes it special..."
-                      value={formData.description}
+                    <Label htmlFor="title">Property Title *</Label>
+                    <Input
+                      id="title"
+                      placeholder="e.g., Modern Downtown Apartment"
+                      value={formData.title}
                       onChange={(e) =>
-                        handleInputChange("description", e.target.value)
+                        handleInputChange("title", e.target.value)
                       }
-                      rows={4}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      placeholder="e.g., Downtown, City Center"
-                      value={formData.location}
-                      onChange={(e) =>
-                        handleInputChange("location", e.target.value)
+                    <Label htmlFor="category">Category *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) =>
+                        handleInputChange("category", value)
                       }
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select property type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROPERTY_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe your property, its features, and what makes it special..."
+                    value={formData.description}
+                    onChange={(e) =>
+                      handleInputChange("description", e.target.value)
+                    }
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    placeholder="e.g., Downtown, City Center"
+                    value={formData.location}
+                    onChange={(e) =>
+                      handleInputChange("location", e.target.value)
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Pricing */}
+          {currentStep === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pricing</CardTitle>
+                <CardDescription>Set your monthly rental price</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="rentPrice">Monthly Rent *</Label>
+                  <Input
+                    id="rentPrice"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    placeholder="0.0"
+                    value={formData.rentPrice}
+                    onChange={(e) =>
+                      handleInputChange("rentPrice", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+
+                {/* Pricing Summary */}
+                {formData.rentPrice && (
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4">
+                      <h4 className="font-medium mb-2">Pricing Summary</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Monthly Rent:</span>
+                          <span className="font-medium">
+                            {formData.rentPrice} ETH
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Images */}
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Property Images</CardTitle>
+                <CardDescription>
+                  Add photos to showcase your property
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="imageUrl">Image URL *</Label>
+                  <Input
+                    id="imageUrl"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.imageUrl}
+                    onChange={(e) =>
+                      handleInputChange("imageUrl", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+
+                {/* Sample Images */}
+                <div className="space-y-2">
+                  <Label>Or choose from sample images:</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {sampleImages.map((url, index) => (
+                      <div
+                        key={index}
+                        className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
+                          formData.imageUrl === url
+                            ? "border-[#edbf6d]"
+                            : "border-muted hover:border-[#edbf6d]/50"
+                        }`}
+                        onClick={() => handleInputChange("imageUrl", url)}
+                      >
+                        <img
+                          src={url}
+                          alt={`Sample ${index + 1}`}
+                          className="w-full h-20 md:h-24 object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Image Preview */}
+                {formData.imageUrl && (
+                  <div className="space-y-2">
+                    <Label>Preview:</Label>
+                    <div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border">
+                      <img
+                        src={formData.imageUrl}
+                        alt="Property preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Property Details & Amenities */}
+          {currentStep === 4 && (
+            <div className="space-y-6 md:space-y-8">
               {/* Property Details */}
               <Card>
                 <CardHeader>
@@ -230,7 +413,9 @@ export default function AddProperty() {
                         min="0"
                         placeholder="0"
                         value={formData.area}
-                        onChange={(e) => handleInputChange("area", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("area", e.target.value)
+                        }
                       />
                     </div>
                   </div>
@@ -248,7 +433,10 @@ export default function AddProperty() {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {AMENITIES.map((amenity) => (
-                      <div key={amenity} className="flex items-center space-x-2">
+                      <div
+                        key={amenity}
+                        className="flex items-center space-x-2"
+                      >
                         <Checkbox
                           id={amenity}
                           checked={formData.amenities.includes(amenity)}
@@ -265,136 +453,50 @@ export default function AddProperty() {
                 </CardContent>
               </Card>
             </div>
+          )}
 
-            {/* Right Column - Images and Pricing */}
-            <div className="space-y-6 md:space-y-8">
-              {/* Images */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Property Images</CardTitle>
-                  <CardDescription>
-                    Add photos to showcase your property
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="imageUrl">Image URL *</Label>
-                    <Input
-                      id="imageUrl"
-                      placeholder="https://example.com/image.jpg"
-                      value={formData.imageUrl}
-                      onChange={(e) =>
-                        handleInputChange("imageUrl", e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-
-                  {/* Sample Images */}
-                  <div className="space-y-2">
-                    <Label>Or choose from sample images:</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {sampleImages.map((url, index) => (
-                        <div
-                          key={index}
-                          className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${formData.imageUrl === url
-                              ? "border-primary"
-                              : "border-muted hover:border-primary/50"
-                            }`}
-                          onClick={() => handleInputChange("imageUrl", url)}
-                        >
-                          <img
-                            src={url}
-                            alt={`Sample ${index + 1}`}
-                            className="w-full h-20 md:h-24 object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Image Preview */}
-                  {formData.imageUrl && (
-                    <div className="space-y-2">
-                      <Label>Preview:</Label>
-                      <div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Property preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Pricing */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pricing</CardTitle>
-                  <CardDescription>Set your monthly rental price</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="rentPrice">Monthly Rent *</Label>
-                    <Input
-                      id="rentPrice"
-                      type="number"
-                      step="0.001"
-                      min="0"
-                      placeholder="0.0"
-                      value={formData.rentPrice}
-                      onChange={(e) =>
-                        handleInputChange("rentPrice", e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-
-                  {/* Pricing Summary */}
-                  {formData.rentPrice && (
-                    <Card className="bg-muted/50">
-                      <CardContent className="p-4">
-                        <h4 className="font-medium mb-2">Pricing Summary</h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>Monthly Rent:</span>
-                            <span className="font-medium">
-                              {formData.rentPrice}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-        
-          {/* Submit Button - Half width and centered */}
-          <div className="mt-6 w-full">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center mt-8">
             <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-1/2 mx-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white flex items-center justify-center"
+              type="button"
+              variant="outline"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="flex items-center space-x-2"
             >
-              {isLoading ? (
-                "Creating Property..."
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  List Property
-                </>
-              )}
+              <ArrowLeftIcon className="h-4 w-4" />
+              <span>Précédent</span>
             </Button>
+
+            {currentStep < 4 ? (
+              <Button
+                type="button"
+                onClick={nextStep}
+                className="bg-[#edbf6d] text-[#1b2e3f] hover:bg-[#edbf6d]/90 flex items-center space-x-2"
+              >
+                <span>Suivant</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-[#edbf6d] text-[#1b2e3f] hover:bg-[#edbf6d]/90 flex items-center space-x-2"
+              >
+                {isLoading ? (
+                  "Creating Property..."
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    <span>List Property</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-
-
         </form>
       </div>
+      <Footer />
     </div>
   );
 }

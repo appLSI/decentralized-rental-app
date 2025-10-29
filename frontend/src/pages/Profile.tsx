@@ -14,7 +14,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/stores/authStore";
 import { useWallet } from "@/contexts/WalletContext";
-import { User, Mail, Wallet, MapPin, Phone, Building, Star, Copy, Check, Calendar, Save, X } from "lucide-react";
+import {
+  User,
+  Mail,
+  Wallet,
+  MapPin,
+  Phone,
+  Building,
+  Star,
+  Copy,
+  Check,
+  Calendar,
+  Save,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface User {
@@ -49,6 +62,18 @@ const Profile = () => {
     profile_image: "",
   });
 
+  // Real person profile images
+  const defaultProfileImages = [
+    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+  ];
+
+  // Get a random profile image if none exists
+  const getProfileImage = () => {
+    if (user?.profile_image) return user.profile_image;
+    const randomIndex = Math.floor(Math.random() * defaultProfileImages.length);
+    return defaultProfileImages[randomIndex];
+  };
+
   // ✅ Fetch full profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -82,7 +107,7 @@ const Profile = () => {
           state: profile.state || "",
           address: profile.address || "",
           date_of_birth: profile.date_of_birth || "",
-          profile_image: profile.profile_image || "",
+          profile_image: profile.profile_image || getProfileImage(),
         });
       } catch (err) {
         console.error("Fetch profile error:", err);
@@ -99,14 +124,17 @@ const Profile = () => {
     if (!user?.userId || !token) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/users/${user.userId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `http://localhost:8080/users/${user.userId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to update profile");
       const updated = await response.json();
@@ -122,7 +150,7 @@ const Profile = () => {
         state: updatedProfile.state || "",
         address: updatedProfile.address || "",
         date_of_birth: updatedProfile.date_of_birth || "",
-        profile_image: updatedProfile.profile_image || "",
+        profile_image: updatedProfile.profile_image || getProfileImage(),
       });
 
       setIsEditing(false);
@@ -159,7 +187,7 @@ const Profile = () => {
         state: user.state || "",
         address: user.address || "",
         date_of_birth: user.date_of_birth || "",
-        profile_image: user.profile_image || "",
+        profile_image: user.profile_image || getProfileImage(),
       });
     }
   };
@@ -172,7 +200,8 @@ const Profile = () => {
     );
   }
 
-  const fullName = `${user?.firstname || ""} ${user?.lastname || ""}`.trim() || "User";
+  const fullName =
+    `${user?.firstname || ""} ${user?.lastname || ""}`.trim() || "User";
 
   return (
     <div className="min-h-screen">
@@ -200,17 +229,38 @@ const Profile = () => {
                     <CardDescription>Your account details</CardDescription>
                   </div>
                   {!isEditing ? (
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditing(true)}
+                      style={{
+                        backgroundColor: "#182a3a",
+                        borderColor: "#182a3a",
+                        color: "white",
+                      }}
+                    >
                       <Save className="mr-2 h-4 w-4" />
                       Edit Profile
                     </Button>
                   ) : (
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={handleCancel}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancel}
+                      >
                         <X className="mr-2 h-4 w-4" />
                         Cancel
                       </Button>
-                      <Button size="sm" onClick={handleSubmit}>
+                      <Button
+                        size="sm"
+                        onClick={handleSubmit}
+                        style={{
+                          backgroundColor: "#182a3a",
+                          borderColor: "#182a3a",
+                          color: "white",
+                        }}
+                      >
                         <Save className="mr-2 h-4 w-4" />
                         Save
                       </Button>
@@ -221,28 +271,34 @@ const Profile = () => {
               <CardContent className="space-y-6">
                 {/* Avatar and Basic Info */}
                 <div className="flex items-center space-x-4">
-                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    {user?.profile_image ? (
-                      <img 
-                        src={user.profile_image} 
-                        alt="Profile" 
-                        className="w-20 h-20 rounded-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-10 w-10 text-white" />
-                    )}
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={getProfileImage()}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="flex-1">
                     {isEditing ? (
                       <div className="grid grid-cols-2 gap-2">
                         <Input
                           value={formData.firstname}
-                          onChange={(e) => setFormData(prev => ({ ...prev, firstname: e.target.value }))}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              firstname: e.target.value,
+                            }))
+                          }
                           placeholder="First Name"
                         />
                         <Input
                           value={formData.lastname}
-                          onChange={(e) => setFormData(prev => ({ ...prev, lastname: e.target.value }))}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              lastname: e.target.value,
+                            }))
+                          }
                           placeholder="Last Name"
                         />
                       </div>
@@ -273,7 +329,9 @@ const Profile = () => {
                       label="Phone"
                       icon={Phone}
                       value={isEditing ? formData.phone : user?.phone}
-                      onChange={(v) => setFormData(prev => ({ ...prev, phone: v }))}
+                      onChange={(v) =>
+                        setFormData((prev) => ({ ...prev, phone: v }))
+                      }
                       readOnly={!isEditing}
                     />
 
@@ -282,8 +340,12 @@ const Profile = () => {
                       label="Date of Birth"
                       icon={Calendar}
                       type="date"
-                      value={isEditing ? formData.date_of_birth : user?.date_of_birth}
-                      onChange={(v) => setFormData(prev => ({ ...prev, date_of_birth: v }))}
+                      value={
+                        isEditing ? formData.date_of_birth : user?.date_of_birth
+                      }
+                      onChange={(v) =>
+                        setFormData((prev) => ({ ...prev, date_of_birth: v }))
+                      }
                       readOnly={!isEditing}
                     />
 
@@ -292,7 +354,9 @@ const Profile = () => {
                       label="Country"
                       icon={MapPin}
                       value={isEditing ? formData.country : user?.country}
-                      onChange={(v) => setFormData(prev => ({ ...prev, country: v }))}
+                      onChange={(v) =>
+                        setFormData((prev) => ({ ...prev, country: v }))
+                      }
                       readOnly={!isEditing}
                     />
                   </div>
@@ -302,14 +366,18 @@ const Profile = () => {
                       id="city"
                       label="City"
                       value={isEditing ? formData.city : user?.city}
-                      onChange={(v) => setFormData(prev => ({ ...prev, city: v }))}
+                      onChange={(v) =>
+                        setFormData((prev) => ({ ...prev, city: v }))
+                      }
                       readOnly={!isEditing}
                     />
                     <InputField
                       id="state"
                       label="State"
                       value={isEditing ? formData.state : user?.state}
-                      onChange={(v) => setFormData(prev => ({ ...prev, state: v }))}
+                      onChange={(v) =>
+                        setFormData((prev) => ({ ...prev, state: v }))
+                      }
                       readOnly={!isEditing}
                     />
                   </div>
@@ -323,7 +391,12 @@ const Profile = () => {
                     {isEditing ? (
                       <Textarea
                         value={formData.address}
-                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            address: e.target.value,
+                          }))
+                        }
                         rows={2}
                       />
                     ) : (
@@ -341,16 +414,27 @@ const Profile = () => {
                     </Label>
                     <div className="flex items-center space-x-2">
                       <code className="flex-1 px-3 py-2 text-sm bg-muted rounded font-mono">
-                        {isConnected && walletAddress ? formatAddress(walletAddress) : 'Not connected'}
+                        {isConnected && walletAddress
+                          ? formatAddress(walletAddress)
+                          : "Not connected"}
                       </code>
                       {isConnected && walletAddress && (
                         <Button
                           variant="outline"
                           size="icon"
                           onClick={copyAddress}
-                          className={copied ? 'text-green-600' : ''}
+                          className={copied ? "text-green-600" : ""}
+                          style={{
+                            backgroundColor: copied ? "#182a3a" : "",
+                            borderColor: "#182a3a",
+                            color: copied ? "white" : "",
+                          }}
                         >
-                          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copied ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
                         </Button>
                       )}
                     </div>
@@ -370,19 +454,27 @@ const Profile = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Properties Owned</span>
+                    <span className="text-sm text-muted-foreground">
+                      Properties Owned
+                    </span>
                     <span className="font-medium">0</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Properties Rented</span>
+                    <span className="text-sm text-muted-foreground">
+                      Properties Rented
+                    </span>
                     <span className="font-medium">0</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Transactions</span>
+                    <span className="text-sm text-muted-foreground">
+                      Total Transactions
+                    </span>
                     <span className="font-medium">0</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Success Rate</span>
+                    <span className="text-sm text-muted-foreground">
+                      Success Rate
+                    </span>
                     <span className="font-medium">0%</span>
                   </div>
                 </div>
@@ -390,11 +482,15 @@ const Profile = () => {
                 <div className="pt-4 border-t">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Portfolio Value</span>
+                      <span className="text-sm text-muted-foreground">
+                        Portfolio Value
+                      </span>
                       <span className="font-medium">0.00 ETH</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Monthly Income</span>
+                      <span className="text-sm text-muted-foreground">
+                        Monthly Income
+                      </span>
                       <span className="font-medium">0.00 ETH</span>
                     </div>
                   </div>
@@ -403,7 +499,9 @@ const Profile = () => {
                 <div className="pt-4 border-t">
                   <div className="flex items-center space-x-2 text-sm">
                     <div className="w-3 h-3 bg-green-500 rounded-full" />
-                    <span className="text-muted-foreground">Reputation Score</span>
+                    <span className="text-muted-foreground">
+                      Reputation Score
+                    </span>
                     <span className="font-medium ml-auto">4.8/5.0</span>
                   </div>
                 </div>
@@ -438,14 +536,14 @@ const Profile = () => {
 };
 
 // Updated helper component
-function InputField({ 
-  id, 
-  label, 
-  value = "", 
-  onChange, 
-  readOnly, 
-  icon: Icon, 
-  type = "text" 
+function InputField({
+  id,
+  label,
+  value = "",
+  onChange,
+  readOnly,
+  icon: Icon,
+  type = "text",
 }: any) {
   return (
     <div className="space-y-2">
