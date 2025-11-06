@@ -41,6 +41,10 @@ public class EmailService {
     /**
      * Envoie un code OTP pour la réinitialisation du mot de passe
      */
+
+
+
+
     public void sendPasswordResetCode(String to, String code) {
         String subject = "Réinitialisation de mot de passe";
 

@@ -12,4 +12,7 @@ public interface UserService extends UserDetailsService {
     UserDto getUserByUserId(String userId);
 
     UserDto updateUser(String id , UserDto userDto);
+
+    void requestPasswordReset(String email);
+    boolean resetPassword(String email, String code, String newPassword);
 }

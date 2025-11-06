@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
@@ -36,9 +38,7 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
     public Authentication attemptAuthentication(HttpServletRequest req, HttpServletResponse res)
             throws AuthenticationException {
         try {
-            // Lecture du corps JSON envoyé dans /login
             UserLoginRequest creds = new ObjectMapper().readValue(req.getInputStream(), UserLoginRequest.class);
-
             return authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             creds.getEmail(),
@@ -59,23 +59,32 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
         String userName = ((User) auth.getPrincipal()).getUsername();
 
-        // ✅ Création de la clé cryptographique moderne
         Key key = Keys.hmacShaKeyFor(SecurityConstants.TOKEN_SECRET.getBytes(StandardCharsets.UTF_8));
 
-        // ✅ Génération du JWT compatible Java 17+
+        UserService userService = (UserService) SpringApplicationContext.getBean("userServiceImpl");
+        UserDto userDto = userService.getUser(userName);
+
+        // ✅ Convertir les enums en String pour le JWT
+        List<String> roleNames = userDto.getRoles().stream()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+
+        List<String> typeNames = userDto.getTypes().stream()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+
         String token = Jwts.builder()
                 .setSubject(userName)
+                .claim("userId", userDto.getUserId())
+                .claim("roles", roleNames)   // Liste de String
+                .claim("types", typeNames)   // Liste de String
                 .setExpiration(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
 
-        // ✅ Récupération du service Spring via ton utilitaire
-        UserService userService = (UserService) SpringApplicationContext.getBean("userServiceImpl");
-
-        UserDto userDto = userService.getUser(userName);
-
-        // ✅ En-têtes HTTP de réponse
+        // ✅ Réponse HTTP
         res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
         res.addHeader("user_id", userDto.getUserId());
     }
+
 }
