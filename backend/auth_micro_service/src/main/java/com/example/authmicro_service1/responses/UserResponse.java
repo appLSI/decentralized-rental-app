@@ -1,8 +1,10 @@
 package com.example.authmicro_service1.responses;
 
 import com.example.authmicro_service1.entities.UserRole;
+import com.example.authmicro_service1.entities.UserType;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 public class UserResponse {
 
@@ -17,9 +19,34 @@ public class UserResponse {
     private LocalDate date_of_birth;
     private String address;
     private String profile_image;
-    private String walletAdresse ;
-    private UserRole role ;
+    private Set<UserRole> roles;
+    private Set<UserType> types;
 
+    private String walletAddress  ;
+
+    public Set<UserRole> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<UserRole> roles) {
+        this.roles = roles;
+    }
+
+    public Set<UserType> getTypes() {
+        return types;
+    }
+
+    public void setTypes(Set<UserType> types) {
+        this.types = types;
+    }
+
+    public String getWalletAddress() {
+        return walletAddress;
+    }
+
+    public void setWalletAddress(String walletAddress) {
+        this.walletAddress = walletAddress;
+    }
 
     public String getUserId() {
         return userId;

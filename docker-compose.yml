@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+  # ==================== AUTH SERVICE ====================
   auth-service:
     build:
       context: ./backend/auth_micro_service
@@ -9,14 +10,42 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/auth_location_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-auth:5432/auth_location_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 12345678
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     depends_on:
-      - db
+      - db-auth
+      - rabbitmq
     networks:
       - app-network
 
+  # ==================== LISTING SERVICE ====================
+  listing-service:
+    build:
+      context: ./backend/ListingService
+      dockerfile: Dockerfile
+    container_name: listing-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-listing:5432/listing_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345678
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+    depends_on:
+      - db-listing
+      - rabbitmq
+    networks:
+      - app-network
+
+  # ==================== FRONTEND ====================
   frontend:
     build:
       context: ./frontend
@@ -26,9 +55,11 @@ services:
       - "3000:80"
     depends_on:
       - auth-service
+      - listing-service
     networks:
       - app-network
 
+  # ==================== BLOCKCHAIN ====================
   blockchain:
     build:
       context: ./blockchain
@@ -39,22 +70,75 @@ services:
     networks:
       - app-network
 
-  db:
+  # ==================== DATABASE AUTH ====================
+  db-auth:
     image: postgres:15
-    container_name: postgres-db
+    container_name: postgres-auth-db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: auth_location_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 12345678
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_auth_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # ==================== DATABASE LISTING ====================
+  db-listing:
+    image: postgres:15
+    container_name: postgres-listing-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: listing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345678
+    volumes:
+      - postgres_listing_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # ==================== RABBITMQ ====================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: my-rabbit
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app-network
+
+
+  # ==================== API GATEWAY ====================
+  api-gateway:
+    build:
+      context: ./backend/gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8082:8082"  # ✅ Gateway sur 8082
+    environment:
+      SERVER_PORT: 8082
+      AUTH_SERVICE_URL: http://auth-service:8080
+      LISTING_SERVICE_URL: http://listing-service:8081  # ✅ Pointe vers listing-service:8081
+      JWT_SECRET: 48b1490f6e9272ca30668097bc848dd62101bc228bf03579f6af535d8a867dc3d5a1b9d72be2a311d2f8cd7308eed4fd13f71ccc894a56a510aec59d57bc87a6
+    depends_on:
+      - auth-service
+      - listing-service
     networks:
       - app-network
 
 volumes:
-  postgres_data:
+  postgres_auth_data:
+  postgres_listing_data:
+  rabbitmq_data:
 
 networks:
   app-network:

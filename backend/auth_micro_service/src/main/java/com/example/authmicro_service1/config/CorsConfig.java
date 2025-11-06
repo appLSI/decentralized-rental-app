@@ -17,8 +17,9 @@ public class CorsConfig {
 
         // ✅ Autoriser les origines frontend
         configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost",
                 "http://localhost:3000",      // React
-                "http://localhost:4200",      // Angular
+                "http://localhost:8082",
                 "http://localhost:5173"       // Vite
         ));
 

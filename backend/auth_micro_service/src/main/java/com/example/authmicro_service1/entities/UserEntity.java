@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity(name="users")
 public class UserEntity implements Serializable {
@@ -64,23 +66,70 @@ public class UserEntity implements Serializable {
     @Column(nullable = false, length = 255)
     private String encrypted_password;
 
-    @Column(length = 255)
-    private String emailVerificationToken;
+
 
     @Column(nullable = true )
     private Boolean emailVerficationStatus = false;
 
+    public Set<UserType> getTypes() {
+        return types;
+    }
+
+    public void setTypes(Set<UserType> types) {
+        this.types = types;
+    }
+
+    public Set<UserRole> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<UserRole> roles) {
+        this.roles = roles;
+    }
+
+    // ✅ Global roles (ADMIN, AGENT, USER)
+    @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private UserRole role; //
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role")
+    private Set<UserRole> roles = new HashSet<>();
 
-    public UserRole getRole() {
-        return role;
+    // ✅ User types (HOST, CLIENT)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Enumerated(EnumType.STRING)
+    @CollectionTable(name = "user_types", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "type")
+    private Set<UserType> types = new HashSet<>(Set.of(UserType.CLIENT));
+
+
+    // Dans UserEntity.java
+
+    // Code OTP pour réinitialisation de mot de passe
+    @Column(length = 6)
+    private String passwordResetCode;
+
+    // Date d'expiration du code de réinitialisation
+    @Column
+    private LocalDateTime passwordResetCodeExpiresAt;
+
+    // Getters et Setters
+    public String getPasswordResetCode() {
+        return passwordResetCode;
     }
 
-    public void setRole(UserRole role) {
-        this.role = role;
+    public void setPasswordResetCode(String passwordResetCode) {
+        this.passwordResetCode = passwordResetCode;
     }
+
+    public LocalDateTime getPasswordResetCodeExpiresAt() {
+        return passwordResetCodeExpiresAt;
+    }
+
+    public void setPasswordResetCodeExpiresAt(LocalDateTime passwordResetCodeExpiresAt) {
+        this.passwordResetCodeExpiresAt = passwordResetCodeExpiresAt;
+    }
+
+
 
 
 
@@ -196,13 +245,6 @@ public class UserEntity implements Serializable {
         this.encrypted_password = encrypted_password;
     }
 
-    public String getEmailVerificationToken() {
-        return emailVerificationToken;
-    }
-
-    public void setEmailVerificationToken(String emailVerificationToken) {
-        this.emailVerificationToken = emailVerificationToken;
-    }
 
     public Boolean getEmailVerficationStatus() {
         return emailVerficationStatus;
