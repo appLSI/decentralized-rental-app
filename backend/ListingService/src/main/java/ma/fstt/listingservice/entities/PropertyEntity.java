@@ -2,6 +2,8 @@ package ma.fstt.listingservice.entities;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import ma.fstt.listingservice.enums.PropertyStatus;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,12 +32,10 @@ public class PropertyEntity implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // MODIFICATION: Relation avec Owner
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private Owner owner;
 
-    // Garder ownerId pour compatibilité
     @Column(name = "owner_user_id", nullable = false, length = 50)
     private String ownerId;
 
@@ -84,18 +84,10 @@ public class PropertyEntity implements Serializable {
     @Column(name = "image_path", length = 500)
     private List<String> imageFolderPath = new ArrayList<>();
 
-    // Status
-    @Column(nullable = false)
-    private Boolean isHidden = false;
-
-    @Column(nullable = false)
-    private Boolean isDraft = false;
-
-    @Column(nullable = false)
-    private Boolean isDeleted = false;
-
-    @Column(nullable = false)
-    private Boolean isValidated = false;
+    // ✅ NOUVEAU: Status unique avec enum
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private PropertyStatus status = PropertyStatus.DRAFT;
 
     // Timestamps
     @Column(nullable = false, updatable = false)
@@ -113,6 +105,73 @@ public class PropertyEntity implements Serializable {
     @JsonManagedReference
     private List<Characteristic> characteristics = new ArrayList<>();
 
+    // ✅ Méthodes helper pour faciliter les transitions
+    public boolean isPubliclyVisible() {
+        return status != null && status.isPubliclyVisible();
+    }
+
+    public boolean isEditable() {
+        return status != null && status.isEditable();
+    }
+
+    public boolean isDraft() {
+        return status == PropertyStatus.DRAFT;
+    }
+
+    public boolean isActive() {
+        return status == PropertyStatus.ACTIVE;
+    }
+
+    public boolean isDeleted() {
+        return status == PropertyStatus.DELETED;
+    }
+
+    public boolean isHidden() {
+        return status == PropertyStatus.HIDDEN;
+    }
+
+    public boolean isValidated() {
+        return status == PropertyStatus.ACTIVE || status == PropertyStatus.HIDDEN;
+    }
+
+    public void markAsDeleted() {
+        this.status = PropertyStatus.DELETED;
+    }
+
+    public void markAsDraft() {
+        this.status = PropertyStatus.DRAFT;
+    }
+
+    public void submitForValidation() {
+        if (this.status == PropertyStatus.DRAFT) {
+            this.status = PropertyStatus.PENDING_VALIDATION;
+        }
+    }
+
+    public void approve() {
+        if (this.status == PropertyStatus.PENDING_VALIDATION) {
+            this.status = PropertyStatus.ACTIVE;
+        }
+    }
+
+    public void reject() {
+        if (this.status == PropertyStatus.PENDING_VALIDATION) {
+            this.status = PropertyStatus.REJECTED;
+        }
+    }
+
+    public void hide() {
+        if (this.status == PropertyStatus.ACTIVE) {
+            this.status = PropertyStatus.HIDDEN;
+        }
+    }
+
+    public void unhide() {
+        if (this.status == PropertyStatus.HIDDEN) {
+            this.status = PropertyStatus.ACTIVE;
+        }
+    }
+
     // Helper methods
     public void addCharacteristic(Characteristic characteristic) {
         this.characteristics.add(characteristic);
@@ -128,6 +187,9 @@ public class PropertyEntity implements Serializable {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         lastUpdateAt = LocalDateTime.now();
+        if (status == null) {
+            status = PropertyStatus.DRAFT;
+        }
     }
 
     @PreUpdate
@@ -299,36 +361,12 @@ public class PropertyEntity implements Serializable {
         this.imageFolderPath = imageFolderPath;
     }
 
-    public Boolean getIsHidden() {
-        return isHidden;
+    public PropertyStatus getStatus() {
+        return status;
     }
 
-    public void setIsHidden(Boolean isHidden) {
-        this.isHidden = isHidden;
-    }
-
-    public Boolean getIsDraft() {
-        return isDraft;
-    }
-
-    public void setIsDraft(Boolean isDraft) {
-        this.isDraft = isDraft;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public Boolean getIsValidated() {
-        return isValidated;
-    }
-
-    public void setIsValidated(Boolean isValidated) {
-        this.isValidated = isValidated;
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {

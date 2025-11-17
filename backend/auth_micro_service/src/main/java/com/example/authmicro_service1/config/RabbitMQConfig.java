@@ -21,6 +21,17 @@ public class RabbitMQConfig {
     public static final String USER_CREATED_ROUTING_KEY = "user.created";
     public static final String USER_UPDATED_ROUTING_KEY = "user.updated";
 
+    // Exchange property (pour écouter les événements property)
+    public static final String PROPERTY_EXCHANGE = "property.exchange";
+    public static final String PROPERTY_CREATED_QUEUE = "property.created.queue";
+    public static final String PROPERTY_CREATED_ROUTING_KEY = "property.created";
+
+    // Événements wallet
+    public static final String WALLET_CONNECTED_QUEUE = "wallet.connected.queue";
+    public static final String WALLET_DISCONNECTED_QUEUE = "wallet.disconnected.queue";
+    public static final String WALLET_CONNECTED_ROUTING_KEY = "wallet.connected";
+    public static final String WALLET_DISCONNECTED_ROUTING_KEY = "wallet.disconnected";
+
     @Bean
     public TopicExchange userExchange() {
         return new TopicExchange(EXCHANGE_NAME);
@@ -61,4 +72,55 @@ public class RabbitMQConfig {
         rabbitTemplate.setMessageConverter(jsonMessageConverter());
         return rabbitTemplate;
     }
+
+
+    @Bean
+    public TopicExchange propertyExchange() {
+        return new TopicExchange(PROPERTY_EXCHANGE);
+    }
+
+    @Bean
+    public Queue propertyCreatedQueue() {
+        return new Queue(PROPERTY_CREATED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding propertyCreatedBinding() {
+        return BindingBuilder
+                .bind(propertyCreatedQueue())
+                .to(propertyExchange())
+                .with(PROPERTY_CREATED_ROUTING_KEY);
+    }
+
+
+    @Bean
+    public Queue walletConnectedQueue() {
+        return new Queue(WALLET_CONNECTED_QUEUE, true);
+    }
+
+    @Bean
+    public Queue walletDisconnectedQueue() {
+        return new Queue(WALLET_DISCONNECTED_QUEUE, true);
+    }
+
+
+    @Bean
+    public Binding walletConnectedBinding(Queue walletConnectedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(walletConnectedQueue)
+                .to(userExchange)
+                .with(WALLET_CONNECTED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding walletDisconnectedBinding(Queue walletDisconnectedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(walletDisconnectedQueue)
+                .to(userExchange)
+                .with(WALLET_DISCONNECTED_ROUTING_KEY);
+    }
+
+
+
+
+
+
 }

@@ -92,6 +92,36 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(authServiceUrl))
 
+                // ==================== WALLET MANAGEMENT ====================
+                .route("wallet_connect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/connect")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_disconnect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/disconnect")
+                        .and().method("DELETE")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_can_disconnect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/can-disconnect")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_status", r -> r
+                        .path("/api/auth/users/{userId}/wallet/status")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+
                 // ==================== LISTING SERVICE ====================
 
                 // ---------- PROPERTIES - Public Routes ----------
@@ -165,6 +195,12 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+                // ✅ NOUVEAU: Endpoint pour compter les properties actives
+                .route("listing_owner_active_count", r -> r
+                        .path("/api/listings/properties/owner/{ownerId}/active-count")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2)) // Public - Auth Service a besoin
                         .uri(listingServiceUrl))
 
                 // ---------- PROPERTY IMAGES - Protected Routes ----------

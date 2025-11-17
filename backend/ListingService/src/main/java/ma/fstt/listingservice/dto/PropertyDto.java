@@ -1,20 +1,19 @@
 package ma.fstt.listingservice.dto;
 
-import java.io.Serializable;
+import ma.fstt.listingservice.enums.PropertyStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PropertyDto implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class PropertyDto {
 
     private Long id;
     private String propertyId;
-    private String userId;
     private String title;
     private String type;
+    private String description;
+    private String userId; // ownerId
 
     // Location
     private Double latitude;
@@ -37,18 +36,36 @@ public class PropertyDto implements Serializable {
     // Images
     private List<String> imageFolderPath = new ArrayList<>();
 
-    // Status
-    private Boolean isHidden;
-    private Boolean isDraft;
-    private Boolean isDeleted;
-    private Boolean isValidated;
+    // ✅ NOUVEAU: Status unique avec enum
+    private PropertyStatus status;
 
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime lastUpdateAt;
 
-    // Characteristics (One-to-Many)
+    // Characteristics
     private List<CharacteristicDto> characteristics = new ArrayList<>();
+
+    // Constructors
+    public PropertyDto() {
+    }
+
+    // ✅ Helper methods pour backward compatibility
+    public Boolean getIsDraft() {
+        return status == PropertyStatus.DRAFT;
+    }
+
+    public Boolean getIsValidated() {
+        return status == PropertyStatus.ACTIVE || status == PropertyStatus.HIDDEN;
+    }
+
+    public Boolean getIsHidden() {
+        return status == PropertyStatus.HIDDEN;
+    }
+
+    public Boolean getIsDeleted() {
+        return status == PropertyStatus.DELETED;
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -67,14 +84,6 @@ public class PropertyDto implements Serializable {
         this.propertyId = propertyId;
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
     public String getTitle() {
         return title;
     }
@@ -89,6 +98,22 @@ public class PropertyDto implements Serializable {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public Double getLatitude() {
@@ -195,36 +220,12 @@ public class PropertyDto implements Serializable {
         this.imageFolderPath = imageFolderPath;
     }
 
-    public Boolean getIsHidden() {
-        return isHidden;
+    public PropertyStatus getStatus() {
+        return status;
     }
 
-    public void setIsHidden(Boolean isHidden) {
-        this.isHidden = isHidden;
-    }
-
-    public Boolean getIsDraft() {
-        return isDraft;
-    }
-
-    public void setIsDraft(Boolean isDraft) {
-        this.isDraft = isDraft;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public Boolean getIsValidated() {
-        return isValidated;
-    }
-
-    public void setIsValidated(Boolean isValidated) {
-        this.isValidated = isValidated;
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {

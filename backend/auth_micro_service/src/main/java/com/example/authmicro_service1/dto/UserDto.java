@@ -27,6 +27,15 @@ public class UserDto implements Serializable {
     private String password;
     private String encrypted_password;
     private Boolean emailVerficationStatus;
+    private String walletAddress  ;
+
+    public String getWalletAddress() {
+        return walletAddress;
+    }
+
+    public void setWalletAddress(String walletAddress) {
+        this.walletAddress = walletAddress;
+    }
 
     // Nouveaux champs
     private Set<UserRole> roles;  // ✅ Enum UserRole

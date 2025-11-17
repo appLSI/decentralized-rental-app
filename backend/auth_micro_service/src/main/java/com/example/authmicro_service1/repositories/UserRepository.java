@@ -14,5 +14,7 @@ public interface UserRepository extends CrudRepository<UserEntity, Long> {
 
     UserEntity findByEmailAndVerificationCode(String email, String verificationCode);
 
+    UserEntity findByWalletAddress(String walletAddress);
+
 
 }

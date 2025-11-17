@@ -1,8 +1,8 @@
 package ma.fstt.listingservice.controller;
 
 import ma.fstt.listingservice.dto.PropertyDto;
+import ma.fstt.listingservice.enums.PropertyStatus;
 import ma.fstt.listingservice.requests.PropertyRequest;
-import ma.fstt.listingservice.requests.PropertyStatusRequest;
 import ma.fstt.listingservice.responses.PropertyResponse;
 import ma.fstt.listingservice.services.PropertyService;
 import org.springframework.beans.BeanUtils;
@@ -15,10 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -42,8 +38,6 @@ public class PropertyController {
             BeanUtils.copyProperties(propertyRequest, propertyDto);
 
             PropertyDto createdProperty = propertyService.createProperty(propertyDto, ownerId);
-
-            // ✅ FIX: Mapper manuellement avec conversion personnalisée
             PropertyResponse response = convertDtoToResponse(createdProperty);
 
             Map<String, Object> result = new HashMap<>();
@@ -99,7 +93,6 @@ public class PropertyController {
 
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<PropertyDto> properties = propertyService.getAllValidatedProperties(pageable);
-
         Page<PropertyResponse> responses = properties.map(this::convertDtoToResponse);
 
         return ResponseEntity.ok(responses);
@@ -118,7 +111,6 @@ public class PropertyController {
         Pageable pageable = PageRequest.of(page, size);
         Page<PropertyDto> properties = propertyService.searchProperties(
                 city, type, minPrice, maxPrice, nbOfGuests, pageable);
-
         Page<PropertyResponse> responses = properties.map(this::convertDtoToResponse);
 
         return ResponseEntity.ok(responses);
@@ -135,7 +127,6 @@ public class PropertyController {
         Pageable pageable = PageRequest.of(page, size);
         Page<PropertyDto> properties = propertyService.findPropertiesNearby(
                 latitude, longitude, radius, pageable);
-
         Page<PropertyResponse> responses = properties.map(this::convertDtoToResponse);
 
         return ResponseEntity.ok(responses);
@@ -151,7 +142,6 @@ public class PropertyController {
             BeanUtils.copyProperties(propertyRequest, propertyDto);
 
             PropertyDto updatedProperty = propertyService.updateProperty(propertyId, propertyDto, ownerId);
-
             PropertyResponse response = convertDtoToResponse(updatedProperty);
 
             return ResponseEntity.ok(response);
@@ -162,23 +152,85 @@ public class PropertyController {
         }
     }
 
+    // ✅ NOUVEAU: Endpoint pour changer le status
     @PatchMapping("/{propertyId}/status")
     public ResponseEntity<?> updatePropertyStatus(
             @PathVariable String propertyId,
-            @RequestBody PropertyStatusRequest statusRequest,
+            @RequestParam PropertyStatus status,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            PropertyDto updatedProperty = propertyService.updatePropertyStatus(propertyId, status, ownerId);
+            PropertyResponse response = convertDtoToResponse(updatedProperty);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Status mis à jour avec succès");
+            result.put("property", response);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    // ✅ NOUVEAU: Endpoints spécifiques pour actions courantes
+    @PostMapping("/{propertyId}/submit")
+    public ResponseEntity<?> submitForValidation(
+            @PathVariable String propertyId,
             @RequestHeader("X-User-Id") String ownerId) {
         try {
             PropertyDto updatedProperty = propertyService.updatePropertyStatus(
-                    propertyId,
-                    statusRequest.getIsHidden(),
-                    statusRequest.getIsDraft(),
-                    statusRequest.getIsValidated(),
-                    ownerId
-            );
-
+                    propertyId, PropertyStatus.PENDING_VALIDATION, ownerId);
             PropertyResponse response = convertDtoToResponse(updatedProperty);
 
-            return ResponseEntity.ok(response);
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Propriété soumise pour validation");
+            result.put("property", response);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    @PostMapping("/{propertyId}/hide")
+    public ResponseEntity<?> hideProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            PropertyDto updatedProperty = propertyService.updatePropertyStatus(
+                    propertyId, PropertyStatus.HIDDEN, ownerId);
+            PropertyResponse response = convertDtoToResponse(updatedProperty);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Propriété cachée");
+            result.put("property", response);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    @PostMapping("/{propertyId}/unhide")
+    public ResponseEntity<?> unhideProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            PropertyDto updatedProperty = propertyService.updatePropertyStatus(
+                    propertyId, PropertyStatus.ACTIVE, ownerId);
+            PropertyResponse response = convertDtoToResponse(updatedProperty);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Propriété visible à nouveau");
+            result.put("property", response);
+
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("message", e.getMessage());
@@ -247,14 +299,24 @@ public class PropertyController {
         return ResponseEntity.ok(response);
     }
 
-    // ✅ MÉTHODE HELPER: Conversion DTO -> Response avec mapping manuel
+    @GetMapping("/owner/{ownerId}/active-count")
+    public ResponseEntity<Map<String, Long>> countActivePropertiesByOwner(@PathVariable String ownerId) {
+        try {
+            Long count = propertyService.countActivePropertiesByOwner(ownerId);
+            Map<String, Long> response = new HashMap<>();
+            response.put("count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Long> error = new HashMap<>();
+            error.put("count", 0L);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
     private PropertyResponse convertDtoToResponse(PropertyDto dto) {
         PropertyResponse response = new PropertyResponse();
         BeanUtils.copyProperties(dto, response);
-
-        // ✅ FIX: Mapper manuellement userId -> ownerId
         response.setOwnerId(dto.getUserId());
-
         return response;
     }
 }

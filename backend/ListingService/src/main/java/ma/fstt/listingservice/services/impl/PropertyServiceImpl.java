@@ -1,10 +1,11 @@
 package ma.fstt.listingservice.services.impl;
-//saved
+
 import ma.fstt.listingservice.dto.CharacteristicDto;
 import ma.fstt.listingservice.dto.PropertyDto;
 import ma.fstt.listingservice.entities.Characteristic;
 import ma.fstt.listingservice.entities.Owner;
 import ma.fstt.listingservice.entities.PropertyEntity;
+import ma.fstt.listingservice.enums.PropertyStatus;
 import ma.fstt.listingservice.repositories.CharacteristicRepository;
 import ma.fstt.listingservice.repositories.OwnerRepository;
 import ma.fstt.listingservice.repositories.PropertyRepository;
@@ -18,8 +19,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import ma.fstt.listingservice.config.RabbitMQConfig;
+
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +39,11 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Autowired
     private CharacteristicRepository characteristicRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(PropertyServiceImpl.class);
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private OwnerRepository ownerRepository;
@@ -43,30 +57,27 @@ public class PropertyServiceImpl implements PropertyService {
     @Override
     @Transactional
     public PropertyDto createProperty(PropertyDto propertyDto, String userId) {
-        // ✅ Récupérer l'Owner depuis la base de données
         Owner owner = ownerRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Owner not found with userId: " + userId + ". Please ensure user is synchronized from Auth Service."));
 
-        // ✅ VÉRIFICATION: L'owner doit avoir une wallet address
         if (owner.getWalletAddress() == null || owner.getWalletAddress().trim().isEmpty()) {
             throw new RuntimeException("Cannot create property: Owner does not have a wallet address. Please add a wallet address in your profile first.");
         }
 
         PropertyEntity propertyEntity = new PropertyEntity();
-        BeanUtils.copyProperties(propertyDto, propertyEntity, "characteristics", "owner");
+        BeanUtils.copyProperties(propertyDto, propertyEntity, "characteristics", "owner", "status");
 
-        // Générer un propertyId unique
         propertyEntity.setPropertyId(propertyIdGenerator.generatePropertyId(20));
         propertyEntity.setOwner(owner);
         propertyEntity.setOwnerId(userId);
 
-        // Initialiser les statuts
-        if (propertyEntity.getIsDraft() == null) propertyEntity.setIsDraft(true);
-        if (propertyEntity.getIsHidden() == null) propertyEntity.setIsHidden(false);
-        if (propertyEntity.getIsDeleted() == null) propertyEntity.setIsDeleted(false);
-        if (propertyEntity.getIsValidated() == null) propertyEntity.setIsValidated(false);
+        // ✅ NOUVEAU: Initialiser le status avec l'enum
+        if (propertyDto.getStatus() != null) {
+            propertyEntity.setStatus(propertyDto.getStatus());
+        } else {
+            propertyEntity.setStatus(PropertyStatus.DRAFT);
+        }
 
-        // Sauvegarder la propriété
         PropertyEntity savedProperty = propertyRepository.save(propertyEntity);
 
         // Lier les caractéristiques
@@ -79,7 +90,30 @@ public class PropertyServiceImpl implements PropertyService {
             savedProperty = propertyRepository.save(savedProperty);
         }
 
+        publishPropertyCreatedEvent(savedProperty);
+
         return convertToDto(savedProperty);
+    }
+
+    private void publishPropertyCreatedEvent(PropertyEntity property) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("propertyId", property.getPropertyId());
+            event.put("ownerId", property.getOwnerId());
+            event.put("status", property.getStatus().name());
+            event.put("timestamp", LocalDateTime.now().toString());
+
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.PROPERTY_EXCHANGE,
+                    RabbitMQConfig.PROPERTY_CREATED_ROUTING_KEY,
+                    event
+            );
+
+            logger.info("✅ PropertyCreatedEvent published: propertyId={}, ownerId={}, status={}",
+                    property.getPropertyId(), property.getOwnerId(), property.getStatus());
+        } catch (Exception e) {
+            logger.error("❌ Failed to publish PropertyCreatedEvent: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -93,7 +127,7 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     public List<PropertyDto> getPropertiesByUserId(String userId) {
-        List<PropertyEntity> properties = propertyRepository.findByOwnerIdAndIsDeleted(userId, false);
+        List<PropertyEntity> properties = propertyRepository.findByOwnerIdAndStatusNot(userId, PropertyStatus.DELETED);
         return properties.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
@@ -101,7 +135,7 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     public Page<PropertyDto> getAllValidatedProperties(Pageable pageable) {
-        Page<PropertyEntity> properties = propertyRepository.findByIsValidatedAndIsDeleted(true, false, pageable);
+        Page<PropertyEntity> properties = propertyRepository.findByStatus(PropertyStatus.ACTIVE, pageable);
         return properties.map(this::convertToDto);
     }
 
@@ -132,6 +166,11 @@ public class PropertyServiceImpl implements PropertyService {
 
         if (!propertyEntity.getOwnerId().equals(userId)) {
             throw new RuntimeException("You are not authorized to modify this property");
+        }
+
+        // Vérifier que la propriété est modifiable
+        if (!propertyEntity.isEditable()) {
+            throw new RuntimeException("Property cannot be edited in current status: " + propertyEntity.getStatus());
         }
 
         // Mettre à jour les champs de base
@@ -166,8 +205,7 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     @Transactional
-    public PropertyDto updatePropertyStatus(String propertyId, Boolean isHidden, Boolean isDraft,
-                                            Boolean isValidated, String userId) {
+    public PropertyDto updatePropertyStatus(String propertyId, PropertyStatus newStatus, String userId) {
         PropertyEntity propertyEntity = propertyRepository.findByPropertyId(propertyId);
 
         if (propertyEntity == null) {
@@ -178,12 +216,45 @@ public class PropertyServiceImpl implements PropertyService {
             throw new RuntimeException("You are not authorized to modify this property");
         }
 
-        if (isHidden != null) propertyEntity.setIsHidden(isHidden);
-        if (isDraft != null) propertyEntity.setIsDraft(isDraft);
-        if (isValidated != null) propertyEntity.setIsValidated(isValidated);
+        // Validation des transitions de status
+        validateStatusTransition(propertyEntity.getStatus(), newStatus);
+
+        propertyEntity.setStatus(newStatus);
 
         PropertyEntity updatedProperty = propertyRepository.save(propertyEntity);
         return convertToDto(updatedProperty);
+    }
+
+    /**
+     * Valide que la transition de status est autorisée
+     */
+    private void validateStatusTransition(PropertyStatus currentStatus, PropertyStatus newStatus) {
+        // Définir les transitions autorisées
+        boolean isValid = switch (currentStatus) {
+            case DRAFT -> newStatus == PropertyStatus.PENDING_VALIDATION ||
+                    newStatus == PropertyStatus.DELETED;
+            case PENDING_VALIDATION -> newStatus == PropertyStatus.ACTIVE ||
+                    newStatus == PropertyStatus.REJECTED ||
+                    newStatus == PropertyStatus.DRAFT ||
+                    newStatus == PropertyStatus.DELETED;
+            case ACTIVE -> newStatus == PropertyStatus.HIDDEN ||
+                    newStatus == PropertyStatus.INACTIVE ||
+                    newStatus == PropertyStatus.DELETED;
+            case HIDDEN -> newStatus == PropertyStatus.ACTIVE ||
+                    newStatus == PropertyStatus.INACTIVE ||
+                    newStatus == PropertyStatus.DELETED;
+            case REJECTED -> newStatus == PropertyStatus.DRAFT ||
+                    newStatus == PropertyStatus.DELETED;
+            case INACTIVE -> newStatus == PropertyStatus.ACTIVE ||
+                    newStatus == PropertyStatus.DELETED;
+            case DELETED -> false; // Pas de retour depuis DELETED
+        };
+
+        if (!isValid) {
+            throw new RuntimeException(
+                    String.format("Invalid status transition from %s to %s", currentStatus, newStatus)
+            );
+        }
     }
 
     @Override
@@ -199,7 +270,7 @@ public class PropertyServiceImpl implements PropertyService {
             throw new RuntimeException("You are not authorized to delete this property");
         }
 
-        propertyEntity.setIsDeleted(true);
+        propertyEntity.markAsDeleted();
         propertyRepository.save(propertyEntity);
     }
 
@@ -243,23 +314,29 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     public Long countPropertiesByOwner(String userId) {
-        return propertyRepository.countByOwnerIdAndIsDeleted(userId, false);
+        return propertyRepository.countByOwnerIdAndStatusNot(userId, PropertyStatus.DELETED);
     }
 
-    // ✅ CORRECTION: Convert Entity to DTO avec mapping explicite de ownerId
+    @Override
+    public Long countActivePropertiesByOwner(String userId) {
+        Owner owner = ownerRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
+
+        return propertyRepository.countByOwnerAndStatus(owner, PropertyStatus.ACTIVE);
+    }
+
+    // ✅ Conversion Entity to DTO
     private PropertyDto convertToDto(PropertyEntity entity) {
         PropertyDto dto = new PropertyDto();
         BeanUtils.copyProperties(entity, dto, "characteristics");
 
-        // ✅ FIX: Mapper explicitement l'ownerId depuis l'entité
         dto.setUserId(entity.getOwnerId());
+        dto.setStatus(entity.getStatus());
 
-        // Mapper les images
         if (entity.getImageFolderPath() != null) {
             dto.setImageFolderPath(entity.getImageFolderPath());
         }
 
-        // Mapper les caractéristiques
         if (entity.getCharacteristics() != null && !entity.getCharacteristics().isEmpty()) {
             List<CharacteristicDto> characteristicDtos = entity.getCharacteristics().stream()
                     .map(this::convertCharacteristicToDto)
