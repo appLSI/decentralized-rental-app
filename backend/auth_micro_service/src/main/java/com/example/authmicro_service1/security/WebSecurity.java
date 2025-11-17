@@ -12,7 +12,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -21,49 +20,45 @@ public class WebSecurity {
     private final UserDetailsService userService;
     private final PasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
-    private final CorsConfigurationSource corsConfigurationSource;
+
 
     public WebSecurity(UserDetailsService userService,
                        PasswordEncoder bCryptPasswordEncoder,
-                       AuthenticationConfiguration authenticationConfiguration, CorsConfigurationSource corsConfigurationSource) {
+                       AuthenticationConfiguration authenticationConfiguration) {
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.authenticationConfiguration = authenticationConfiguration;
-        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // Récupérer le manager d’authentification
         AuthenticationManager authenticationManager = authenticationConfiguration.getAuthenticationManager();
-
-        // Créer ton filtre personnalisé
         AuthenticationFilter authenticationFilter = getAuthenticationFilter(authenticationManager);
+        AuthorizationFilter authorizationFilter = new AuthorizationFilter(authenticationManager);
 
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
-                        .requestMatchers("/users/verify-otp").permitAll()
-                        .requestMatchers("/users/resend-verification").permitAll()
+                        .requestMatchers("/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                        .requestMatchers("/users/verify-otp", "/users/resend-otp", "/users/forgot-password", "/users/reset-password").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                // Ajouter ton filtre au pipeline de sécurité
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilter(authenticationFilter)
-                .addFilter(new AuthorizationFilter(authenticationManager))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .addFilterBefore(authorizationFilter, AuthenticationFilter.class); // Ordre critique !
 
         return http.build();
     }
 
-    // ✅ Méthode utilitaire propre pour ton AuthenticationFilter
     private AuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) {
         AuthenticationFilter filter = new AuthenticationFilter(authenticationManager);
-        filter.setFilterProcessesUrl("/users/login"); // endpoint de connexion personnalisé
+        filter.setFilterProcessesUrl("/users/login"); // login endpoint
         return filter;
     }
 
-    // ✅ Provider pour ton service utilisateur et ton encodeur
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -72,7 +67,6 @@ public class WebSecurity {
         return authProvider;
     }
 
-    // ✅ Fournit un AuthenticationManager à Spring
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();

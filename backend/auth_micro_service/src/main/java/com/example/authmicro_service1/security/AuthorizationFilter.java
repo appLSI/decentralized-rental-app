@@ -12,6 +12,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
+import java.util.*;
+
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import java.util.stream.Collectors;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
@@ -43,14 +50,11 @@ public class AuthorizationFilter extends BasicAuthenticationFilter {
         chain.doFilter(request, response);
     }
 
-    // ✅ Méthode pour valider le token et extraire l’utilisateur
     private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest request) {
         String token = request.getHeader(SecurityConstants.HEADER_STRING);
         if (token != null) {
             try {
-                // Retirer le préfixe "Bearer "
                 token = token.replace(SecurityConstants.TOKEN_PREFIX, "");
-
                 Key key = Keys.hmacShaKeyFor(SecurityConstants.TOKEN_SECRET.getBytes(StandardCharsets.UTF_8));
 
                 Claims claims = Jwts.parserBuilder()
@@ -61,8 +65,19 @@ public class AuthorizationFilter extends BasicAuthenticationFilter {
 
                 String user = claims.getSubject();
 
+                // ✅ Extraire les rôles du JWT
+                List<String> roles = claims.get("roles", List.class);
+
+                // ✅ Convertir en GrantedAuthority
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                if (roles != null) {
+                    authorities = roles.stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .collect(Collectors.toList());
+                }
+
                 if (user != null) {
-                    return new UsernamePasswordAuthenticationToken(user, null, new ArrayList<>());
+                    return new UsernamePasswordAuthenticationToken(user, null, authorities);
                 }
             } catch (Exception e) {
                 System.out.println("❌ JWT invalide ou expiré : " + e.getMessage());
