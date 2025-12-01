@@ -33,7 +33,7 @@ public class AdminInitializer implements CommandLineRunner {
             admin.setUserId(UUID.randomUUID().toString());
             admin.setFirstname("Admin");
             admin.setLastname("System");
-            admin.setEmail("admin@example.com");
+            admin.setEmail("daar.chain@gmail.com");
             admin.setEncrypted_password(passwordEncoder.encode("Admin@123"));
             admin.setEmailVerficationStatus(true);
 

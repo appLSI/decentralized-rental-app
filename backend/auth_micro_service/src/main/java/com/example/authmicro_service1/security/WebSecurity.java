@@ -4,77 +4,88 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class WebSecurity {
 
-    private final UserDetailsService userService;
-    private final PasswordEncoder bCryptPasswordEncoder;
-    private final AuthenticationConfiguration authenticationConfiguration;
-
-    public WebSecurity(UserDetailsService userService,
-                       PasswordEncoder bCryptPasswordEncoder,
-                       AuthenticationConfiguration authenticationConfiguration) {
-        this.userService = userService;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
-        this.authenticationConfiguration = authenticationConfiguration;
-    }
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        AuthenticationManager authenticationManager = authenticationConfiguration.getAuthenticationManager();
-        AuthenticationFilter authenticationFilter = getAuthenticationFilter(authenticationManager);
-        AuthorizationFilter authorizationFilter = new AuthorizationFilter(authenticationManager);
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+
+        // Configuration du filtre d'authentification pour utiliser l'URL /users/login
+        AuthenticationFilter authenticationFilter = new AuthenticationFilter(authenticationManager);
+        authenticationFilter.setFilterProcessesUrl("/users/login");
 
         http
+                // ✅ 1. Activation de la configuration CORS définie plus bas
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 2. Désactivation CSRF (inutile pour les API Stateless avec JWT)
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.disable())
+
+                // 3. Gestion des autorisations d'URL
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
-                        .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                        .requestMatchers("/users/verify-otp", "/users/resend-otp").permitAll()
-                        .requestMatchers("/users/forgot-password", "/users/reset-password").permitAll()
-                        .requestMatchers("/error").permitAll()
-
-                        // ✅ Admin-only endpoints
-                        .requestMatchers("/users/admin/**").hasRole("ADMIN")
-
-                        // All other requests require authentication
+                        // Autoriser l'accès public au login et à l'inscription (POST)
+                        .requestMatchers(HttpMethod.POST, "/users/login", "/users").permitAll()
+                        // Autoriser les requêtes OPTIONS (CORS pre-flight) pour tout le monde
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Tout le reste nécessite une authentification
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // 4. Ajout des filtres personnalisés
                 .addFilter(authenticationFilter)
-                .addFilterBefore(authorizationFilter, AuthenticationFilter.class);
+                // Assurez-vous que vous avez bien la classe AuthorizationFilter, sinon commentez la ligne suivante
+                .addFilter(new AuthorizationFilter(authenticationManager))
+
+                // 5. Gestion de session Stateless (pas de cookies de session)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
     }
 
-    private AuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) {
-        AuthenticationFilter filter = new AuthenticationFilter(authenticationManager);
-        filter.setFilterProcessesUrl("/users/login");
-        return filter;
+    /**
+     * ✅ CONFIGURATION CORS SPÉCIFIQUE
+     * C'est ici que l'on autorise http://localhost:3000
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Autoriser spécifiquement votre Frontend React
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+
+        // Autoriser les méthodes HTTP courantes
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // Autoriser tous les headers (Content-Type, Authorization, etc.)
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // ⚠️ TRÈS IMPORTANT : Permet au frontend de lire le header "Authorization" et "user_id"
+        // Sans ça, votre frontend ne pourra pas récupérer le token JWT après le login
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "user_id"));
+
+        // Autoriser les cookies/credentials si besoin (optionnel selon votre architecture)
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userService);
-        authProvider.setPasswordEncoder(bCryptPasswordEncoder);
-        return authProvider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 }

@@ -15,6 +15,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -42,8 +43,22 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     public Authentication attemptAuthentication(HttpServletRequest req, HttpServletResponse res)
             throws AuthenticationException {
+
+        // ✅ CORRECTIF CORS : Si c'est une requête OPTIONS, on répond OK (200) et on arrête là.
+        // Cela permet au navigateur de recevoir la validation CORS sans erreur.
+        if (req.getMethod().equals("OPTIONS")) {
+            res.setStatus(HttpServletResponse.SC_OK);
+            return null; // Retourner null arrête le filtre proprement sans erreur
+        }
+
+        // ✅ Vérification méthode POST (pour éviter le crash Jackson sur les autres méthodes)
+        if (!req.getMethod().equals("POST")) {
+            throw new AuthenticationServiceException("Authentication method not supported: " + req.getMethod());
+        }
+
         try {
             UserLoginRequest creds = new ObjectMapper().readValue(req.getInputStream(), UserLoginRequest.class);
+            // ... reste du code (vérification email/password)
 
             if (creds.getEmail() == null || creds.getEmail().trim().isEmpty()) {
                 throw new BadCredentialsException("L'email est requis");
