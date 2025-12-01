@@ -48,7 +48,7 @@ public class PropertyEventListener {
                     propertyId, ownerId, status);
 
             // Récupérer l'utilisateur
-            UserEntity user = userRepository.findByUserId(ownerId);
+            UserEntity user = userRepository.findByUserId(ownerId).orElse(null);
 
             if (user == null) {
                 logger.error("❌ User not found with userId: {}", ownerId);

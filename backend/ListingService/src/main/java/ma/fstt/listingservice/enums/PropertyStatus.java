@@ -38,7 +38,9 @@ public enum PropertyStatus {
     /**
      * Supprimée - soft delete
      */
-    DELETED("Supprimée", "Property is soft deleted");
+    DELETED("Supprimée", "Property is soft deleted"),
+
+    SUSPENDED("Suspendue", "Property is suspended by admin"); // <-- CORRECTION ICI
 
     private final String displayName;
     private final String description;

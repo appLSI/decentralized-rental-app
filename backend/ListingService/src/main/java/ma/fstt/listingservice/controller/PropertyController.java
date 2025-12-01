@@ -1,6 +1,8 @@
 package ma.fstt.listingservice.controller;
 
 import ma.fstt.listingservice.dto.PropertyDto;
+import ma.fstt.listingservice.dto.PropertyImageDto;
+import ma.fstt.listingservice.entities.PropertyImage;
 import ma.fstt.listingservice.enums.PropertyStatus;
 import ma.fstt.listingservice.requests.PropertyRequest;
 import ma.fstt.listingservice.responses.PropertyResponse;
@@ -28,6 +30,8 @@ public class PropertyController {
 
     @Autowired
     private PropertyService propertyService;
+
+    // ========== CRUD BASIQUE ==========
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> createProperty(
@@ -98,6 +102,44 @@ public class PropertyController {
         return ResponseEntity.ok(responses);
     }
 
+    @PutMapping("/{propertyId}")
+    public ResponseEntity<?> updateProperty(
+            @PathVariable String propertyId,
+            @RequestBody PropertyRequest propertyRequest,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            PropertyDto propertyDto = new PropertyDto();
+            BeanUtils.copyProperties(propertyRequest, propertyDto);
+
+            PropertyDto updatedProperty = propertyService.updateProperty(propertyId, propertyDto, ownerId);
+            PropertyResponse response = convertDtoToResponse(updatedProperty);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    @DeleteMapping("/{propertyId}")
+    public ResponseEntity<Map<String, String>> deleteProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            propertyService.deleteProperty(propertyId, ownerId);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Propriété supprimée avec succès");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    // ========== SEARCH ==========
+
     @GetMapping("/search")
     public ResponseEntity<Page<PropertyResponse>> searchProperties(
             @RequestParam(required = false) String city,
@@ -132,27 +174,8 @@ public class PropertyController {
         return ResponseEntity.ok(responses);
     }
 
-    @PutMapping("/{propertyId}")
-    public ResponseEntity<?> updateProperty(
-            @PathVariable String propertyId,
-            @RequestBody PropertyRequest propertyRequest,
-            @RequestHeader("X-User-Id") String ownerId) {
-        try {
-            PropertyDto propertyDto = new PropertyDto();
-            BeanUtils.copyProperties(propertyRequest, propertyDto);
+    // ========== STATUS MANAGEMENT ==========
 
-            PropertyDto updatedProperty = propertyService.updateProperty(propertyId, propertyDto, ownerId);
-            PropertyResponse response = convertDtoToResponse(updatedProperty);
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
-    }
-
-    // ✅ NOUVEAU: Endpoint pour changer le status
     @PatchMapping("/{propertyId}/status")
     public ResponseEntity<?> updatePropertyStatus(
             @PathVariable String propertyId,
@@ -174,7 +197,6 @@ public class PropertyController {
         }
     }
 
-    // ✅ NOUVEAU: Endpoints spécifiques pour actions courantes
     @PostMapping("/{propertyId}/submit")
     public ResponseEntity<?> submitForValidation(
             @PathVariable String propertyId,
@@ -238,21 +260,7 @@ public class PropertyController {
         }
     }
 
-    @DeleteMapping("/{propertyId}")
-    public ResponseEntity<Map<String, String>> deleteProperty(
-            @PathVariable String propertyId,
-            @RequestHeader("X-User-Id") String ownerId) {
-        try {
-            propertyService.deleteProperty(propertyId, ownerId);
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "Propriété supprimée avec succès");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
-    }
+    // ========== IMAGE MANAGEMENT (✅ CORRIGÉ) ==========
 
     @PostMapping("/{propertyId}/images")
     public ResponseEntity<?> uploadImages(
@@ -260,11 +268,26 @@ public class PropertyController {
             @RequestParam("images") List<MultipartFile> images,
             @RequestHeader("X-User-Id") String ownerId) {
         try {
-            List<String> uploadedPaths = propertyService.uploadPropertyImages(propertyId, images, ownerId);
+            List<PropertyImage> uploadedImages = propertyService.uploadPropertyImages(
+                    propertyId, images, ownerId);
+
+            // ✅ Convertir en DTO pour la réponse avec TOUS les champs
+            List<PropertyImageDto> imageDtos = uploadedImages.stream()
+                    .map(img -> {
+                        PropertyImageDto dto = new PropertyImageDto();
+                        dto.setId(img.getId());
+                        dto.setImageUrl(img.getImageUrl());
+                        dto.setIsMain(img.getIsMain());
+                        dto.setDisplayOrder(img.getDisplayOrder());
+                        dto.setAltText(img.getAltText()); // ✅ Ajouté
+                        dto.setCreatedAt(img.getCreatedAt()); // ✅ IMPORTANT: Ajouté
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Images uploadées avec succès");
-            response.put("imagePaths", uploadedPaths);
+            response.put("images", imageDtos);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -274,13 +297,30 @@ public class PropertyController {
         }
     }
 
-    @DeleteMapping("/{propertyId}/images")
-    public ResponseEntity<Map<String, String>> deleteImage(
+    @PutMapping("/{propertyId}/images/{imageId}/set-main")
+    public ResponseEntity<?> setMainImage(
             @PathVariable String propertyId,
-            @RequestParam String imagePath,
+            @PathVariable Long imageId,
             @RequestHeader("X-User-Id") String ownerId) {
         try {
-            propertyService.deletePropertyImage(propertyId, imagePath, ownerId);
+            propertyService.setMainImage(propertyId, imageId, ownerId);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Image principale définie avec succès");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    @DeleteMapping("/{propertyId}/images/{imageId}")
+    public ResponseEntity<Map<String, String>> deleteImage(
+            @PathVariable String propertyId,
+            @PathVariable Long imageId,
+            @RequestHeader("X-User-Id") String ownerId) {
+        try {
+            propertyService.deletePropertyImage(propertyId, imageId, ownerId);
             Map<String, String> response = new HashMap<>();
             response.put("message", "Image supprimée avec succès");
             return ResponseEntity.ok(response);
@@ -290,6 +330,8 @@ public class PropertyController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
+
+    // ========== COUNTS ==========
 
     @GetMapping("/owner/{ownerId}/count")
     public ResponseEntity<Map<String, Long>> countPropertiesByOwner(@PathVariable String ownerId) {
@@ -312,6 +354,8 @@ public class PropertyController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
+    // ========== CONVERSION ==========
 
     private PropertyResponse convertDtoToResponse(PropertyDto dto) {
         PropertyResponse response = new PropertyResponse();

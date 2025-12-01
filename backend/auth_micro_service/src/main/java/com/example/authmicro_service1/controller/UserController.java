@@ -1,12 +1,17 @@
 package com.example.authmicro_service1.controller;
 
 import com.example.authmicro_service1.dto.UserDto;
+import com.example.authmicro_service1.entities.UserRole;
 import com.example.authmicro_service1.requests.UserRequest;
 import com.example.authmicro_service1.requests.VerifyOTPRequest;
 import com.example.authmicro_service1.responses.UserResponse;
+import com.example.authmicro_service1.security.SecurityConstants;
 import com.example.authmicro_service1.services.impl.userServiceImpl;
 import com.example.authmicro_service1.requests.ForgotPasswordRequest;
 import com.example.authmicro_service1.requests.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,8 +19,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -137,13 +144,8 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-
-
-
-
     /**
      * Demander la réinitialisation du mot de passe
-     * POST /users/forgot-password
      */
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
@@ -169,7 +171,6 @@ public class UserController {
 
     /**
      * Réinitialiser le mot de passe avec le code OTP
-     * POST /users/reset-password
      */
     @PostMapping("/reset-password")
     public ResponseEntity<Map<String, String>> resetPassword(@RequestBody ResetPasswordRequest request) {
@@ -203,7 +204,9 @@ public class UserController {
         }
     }
 
-
+    /**
+     * Mettre à jour l'adresse wallet
+     */
     @PutMapping("/{id}/wallet")
     public ResponseEntity<Map<String, String>> updateWalletAddress(
             @PathVariable String id,
@@ -212,7 +215,7 @@ public class UserController {
             userService.updateWalletAddress(id, request.getWalletAddress());
 
             Map<String, String> response = new HashMap<>();
-            response.put("message", "Adresse wallet mise à jour et notification envoyée avec succès.");
+            response.put("message", "Adresse wallet mise à jour avec succès.");
             response.put("userId", id);
             return ResponseEntity.ok(response);
         } catch (UsernameNotFoundException e) {
@@ -224,5 +227,110 @@ public class UserController {
             response.put("message", "Erreur interne: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
-}
+    }
+
+    /**
+     * Create Agent (Admin only)
+     */
+    @PostMapping("/admin/agents")
+    public ResponseEntity<Map<String, Object>> createAgent(
+            @RequestBody CreateAgentRequest agentRequest,
+            @RequestHeader("Authorization") String token) {
+        try {
+            // Extract userId from token
+            String userId = extractUserIdFromToken(token);
+
+            // Convert request to DTO
+            UserDto agentDto = new UserDto();
+            BeanUtils.copyProperties(agentRequest, agentDto);
+
+            // Create agent
+            UserDto createdAgent = userService.createAgent(agentDto, userId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Agent créé avec succès");
+            response.put("userId", createdAgent.getUserId());
+            response.put("email", createdAgent.getEmail());
+            response.put("roles", createdAgent.getRoles());
+            response.put("types", createdAgent.getTypes());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Erreur lors de la création de l'agent: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Get all agents (Admin only)
+     */
+    @GetMapping("/admin/agents")
+    public ResponseEntity<?> getAllAgents(@RequestHeader("Authorization") String token) {
+        try {
+            String userId = extractUserIdFromToken(token);
+
+            // Verify admin privileges
+            UserDto admin = userService.getUserByUserId(userId);
+            if (!admin.getRoles().contains(UserRole.ADMIN)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "Accès refusé"));
+            }
+
+            List<UserDto> agents = userService.getAllAgents();
+
+            return ResponseEntity.ok(agents);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erreur: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete agent (Admin only)
+     */
+    @DeleteMapping("/admin/agents/{agentId}")
+    public ResponseEntity<Map<String, String>> deleteAgent(
+            @PathVariable String agentId,
+            @RequestHeader("Authorization") String token) {
+        try {
+            String userId = extractUserIdFromToken(token);
+
+            userService.deleteAgent(agentId, userId);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Agent supprimé avec succès");
+            response.put("agentId", agentId);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
+    /**
+     * Helper method to extract userId from JWT token
+     */
+    private String extractUserIdFromToken(String token) {
+        try {
+            token = token.replace("Bearer ", "");
+            Key key = Keys.hmacShaKeyFor(SecurityConstants.TOKEN_SECRET.getBytes(StandardCharsets.UTF_8));
+
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            return claims.get("userId", String.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Token invalide");
+        }
+    }
 }

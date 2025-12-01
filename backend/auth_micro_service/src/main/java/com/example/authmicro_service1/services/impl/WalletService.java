@@ -1,4 +1,4 @@
-package com.example.authmicro_service1.services;
+package com.example.authmicro_service1.services.impl;
 
 import com.example.authmicro_service1.Producer.RabbitMQProducer;
 import com.example.authmicro_service1.client.BookingServiceClient;
@@ -33,13 +33,14 @@ public class WalletService {
      */
     @Transactional
     public Map<String, Object> connectWallet(String userId, String walletAddress) {
-        UserEntity user = userRepository.findByUserId(userId);
+        UserEntity user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
         if (user == null) {
             throw new UsernameNotFoundException("Utilisateur non trouvé");
         }
 
         // Vérifier que le wallet n'est pas déjà utilisé par un autre utilisateur
-        UserEntity existingWallet = userRepository.findByWalletAddress(walletAddress);
+        UserEntity existingWallet = userRepository.findByWalletAddress(walletAddress).orElse(null);
         if (existingWallet != null && !existingWallet.getUserId().equals(userId)) {
             throw new RuntimeException("Cette adresse wallet est déjà utilisée par un autre compte");
         }
@@ -64,7 +65,7 @@ public class WalletService {
      */
     @Transactional
     public Map<String, Object> disconnectWallet(String userId) {
-        UserEntity user = userRepository.findByUserId(userId);
+        UserEntity user = userRepository.findByUserId(userId).orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));;
         if (user == null) {
             throw new UsernameNotFoundException("Utilisateur non trouvé");
         }
@@ -155,7 +156,7 @@ public class WalletService {
      * Vérifier le statut du wallet de l'utilisateur
      */
     public Map<String, Object> getWalletStatus(String userId) {
-        UserEntity user = userRepository.findByUserId(userId);
+        UserEntity user = userRepository.findByUserId(userId).orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));;
         if (user == null) {
             throw new UsernameNotFoundException("Utilisateur non trouvé");
         }

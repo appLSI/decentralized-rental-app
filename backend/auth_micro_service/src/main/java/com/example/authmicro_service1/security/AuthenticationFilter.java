@@ -1,6 +1,9 @@
 package com.example.authmicro_service1.security;
 
+import com.example.authmicro_service1.dto.ErrorResponse;
 import com.example.authmicro_service1.dto.UserDto;
+import com.example.authmicro_service1.exceptions.EmailNotVerifiedException;
+import com.example.authmicro_service1.exceptions.UserNotFoundException;
 import com.example.authmicro_service1.requests.UserLoginRequest;
 import com.example.authmicro_service1.services.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +15,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -21,6 +25,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -39,6 +44,15 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
             throws AuthenticationException {
         try {
             UserLoginRequest creds = new ObjectMapper().readValue(req.getInputStream(), UserLoginRequest.class);
+
+            if (creds.getEmail() == null || creds.getEmail().trim().isEmpty()) {
+                throw new BadCredentialsException("L'email est requis");
+            }
+
+            if (creds.getPassword() == null || creds.getPassword().trim().isEmpty()) {
+                throw new BadCredentialsException("Le mot de passe est requis");
+            }
+
             return authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             creds.getEmail(),
@@ -47,8 +61,51 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
                     )
             );
         } catch (IOException e) {
-            throw new RuntimeException("Erreur lors de la lecture des identifiants utilisateur", e);
+            throw new RuntimeException("Erreur lors de la lecture des identifiants", e);
         }
+    }
+
+    @Override
+    protected void unsuccessfulAuthentication(HttpServletRequest request,
+                                              HttpServletResponse response,
+                                              AuthenticationException failed) throws IOException, ServletException {
+
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(LocalDateTime.now());
+        errorResponse.setPath(request.getRequestURI());
+
+        // Check the cause of the authentication exception
+        Throwable cause = failed.getCause();
+        String message = failed.getMessage();
+
+        if (cause instanceof UserNotFoundException || message.contains("Aucun compte n'existe") || message.contains("Aucun utilisateur")) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            errorResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            errorResponse.setError("User Not Found");
+            errorResponse.setMessage(message != null ? message : "Utilisateur non trouvé");
+        } else if (cause instanceof EmailNotVerifiedException || message.contains("vérifier votre email")) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            errorResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            errorResponse.setError("Email Not Verified");
+            errorResponse.setMessage(message != null ? message : "Veuillez vérifier votre email avant de vous connecter");
+        } else if (failed instanceof BadCredentialsException) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            errorResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            errorResponse.setError("Invalid Credentials");
+            errorResponse.setMessage("Email ou mot de passe incorrect");
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            errorResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            errorResponse.setError("Authentication Failed");
+            errorResponse.setMessage(message != null ? message : "Échec de l'authentification");
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules();
+        response.getWriter().write(mapper.writeValueAsString(errorResponse));
     }
 
     @Override
@@ -64,7 +121,6 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
         UserService userService = (UserService) SpringApplicationContext.getBean("userServiceImpl");
         UserDto userDto = userService.getUser(userName);
 
-        // ✅ Convertir les enums en String pour le JWT
         List<String> roleNames = userDto.getRoles().stream()
                 .map(Enum::name)
                 .collect(Collectors.toList());
@@ -76,15 +132,24 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
         String token = Jwts.builder()
                 .setSubject(userName)
                 .claim("userId", userDto.getUserId())
-                .claim("roles", roleNames)   // Liste de String
-                .claim("types", typeNames)   // Liste de String
+                .claim("roles", roleNames)
+                .claim("types", typeNames)
                 .setExpiration(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
 
-        // ✅ Réponse HTTP
         res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
         res.addHeader("user_id", userDto.getUserId());
-    }
 
+        // Optionally return a JSON response body with user info
+        res.setContentType("application/json");
+        res.setCharacterEncoding("UTF-8");
+
+        String jsonResponse = String.format(
+                "{\"message\":\"Connexion réussie\",\"userId\":\"%s\",\"token\":\"%s\"}",
+                userDto.getUserId(),
+                SecurityConstants.TOKEN_PREFIX + token
+        );
+        res.getWriter().write(jsonResponse);
+    }
 }

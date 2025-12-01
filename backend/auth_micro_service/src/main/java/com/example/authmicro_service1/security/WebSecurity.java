@@ -21,7 +21,6 @@ public class WebSecurity {
     private final PasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
 
-
     public WebSecurity(UserDetailsService userService,
                        PasswordEncoder bCryptPasswordEncoder,
                        AuthenticationConfiguration authenticationConfiguration) {
@@ -38,24 +37,31 @@ public class WebSecurity {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
-                        .requestMatchers("/users").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                        .requestMatchers("/users/verify-otp", "/users/resend-otp", "/users/forgot-password", "/users/reset-password").permitAll()
+                        .requestMatchers("/users/verify-otp", "/users/resend-otp").permitAll()
+                        .requestMatchers("/users/forgot-password", "/users/reset-password").permitAll()
                         .requestMatchers("/error").permitAll()
+
+                        // ✅ Admin-only endpoints
+                        .requestMatchers("/users/admin/**").hasRole("ADMIN")
+
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilter(authenticationFilter)
-                .addFilterBefore(authorizationFilter, AuthenticationFilter.class); // Ordre critique !
+                .addFilterBefore(authorizationFilter, AuthenticationFilter.class);
 
         return http.build();
     }
 
     private AuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) {
         AuthenticationFilter filter = new AuthenticationFilter(authenticationManager);
-        filter.setFilterProcessesUrl("/users/login"); // login endpoint
+        filter.setFilterProcessesUrl("/users/login");
         return filter;
     }
 

@@ -4,17 +4,16 @@ import com.example.authmicro_service1.entities.UserEntity;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface UserRepository extends CrudRepository<UserEntity, Long> {
 
-    UserEntity findByEmail(String email);
+    Optional<UserEntity> findByEmail(String email);
 
-    UserEntity findByUserId(String userId);
+    Optional<UserEntity> findByUserId(String userId);
 
+    Optional<UserEntity> findByEmailAndVerificationCode(String email, String verificationCode);
 
-    UserEntity findByEmailAndVerificationCode(String email, String verificationCode);
-
-    UserEntity findByWalletAddress(String walletAddress);
-
-
+    Optional<UserEntity> findByWalletAddress(String walletAddress);
 }

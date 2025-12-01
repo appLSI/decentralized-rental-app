@@ -91,4 +91,10 @@ public interface PropertyRepository extends JpaRepository<PropertyEntity, Long> 
     // ✅ NOUVEAU: Find owner's active properties
     @Query("SELECT p FROM PropertyEntity p WHERE p.owner = :owner AND p.status = 'ACTIVE'")
     List<PropertyEntity> findActivePropertiesByOwner(@Param("owner") Owner owner);
+
+
+    /**
+     * Compter les propriétés par statut
+     */
+    Long countByStatus(PropertyStatus status);
 }

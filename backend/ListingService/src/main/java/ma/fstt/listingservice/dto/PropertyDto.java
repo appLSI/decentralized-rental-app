@@ -1,6 +1,7 @@
 package ma.fstt.listingservice.dto;
 
 import ma.fstt.listingservice.enums.PropertyStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,10 +34,11 @@ public class PropertyDto {
     private Integer nbOfBeds;
     private Integer nbOfBathrooms;
 
-    // Images
-    private List<String> imageFolderPath = new ArrayList<>();
+    // ✅ NOUVEAU: Images structurées
+    private List<PropertyImageDto> images = new ArrayList<>();
+    private String mainImageUrl; // URL directe de l'image principale
 
-    // ✅ NOUVEAU: Status unique avec enum
+    // Status
     private PropertyStatus status;
 
     // Timestamps
@@ -46,206 +48,201 @@ public class PropertyDto {
     // Characteristics
     private List<CharacteristicDto> characteristics = new ArrayList<>();
 
-    // Constructors
+    // ========== CONSTRUCTORS ==========
+
     public PropertyDto() {
     }
 
-    // ✅ Helper methods pour backward compatibility
-    public Boolean getIsDraft() {
-        return status == PropertyStatus.DRAFT;
-    }
+    // ========== GETTERS ==========
 
-    public Boolean getIsValidated() {
-        return status == PropertyStatus.ACTIVE || status == PropertyStatus.HIDDEN;
-    }
-
-    public Boolean getIsHidden() {
-        return status == PropertyStatus.HIDDEN;
-    }
-
-    public Boolean getIsDeleted() {
-        return status == PropertyStatus.DELETED;
-    }
-
-    // Getters and Setters
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getPropertyId() {
         return propertyId;
     }
 
-    public void setPropertyId(String propertyId) {
-        this.propertyId = propertyId;
-    }
-
     public String getTitle() {
         return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
     }
 
     public String getType() {
         return type;
     }
 
-    public void setType(String type) {
-        this.type = type;
-    }
-
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getUserId() {
         return userId;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
     public Double getLatitude() {
         return latitude;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
     }
 
     public Double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
-
     public String getAddressName() {
         return addressName;
-    }
-
-    public void setAddressName(String addressName) {
-        this.addressName = addressName;
     }
 
     public String getCity() {
         return city;
     }
 
-    public void setCity(String city) {
-        this.city = city;
-    }
-
     public String getCountry() {
         return country;
-    }
-
-    public void setCountry(String country) {
-        this.country = country;
     }
 
     public String getState() {
         return state;
     }
 
-    public void setState(String state) {
-        this.state = state;
-    }
-
     public String getCodePostale() {
         return codePostale;
-    }
-
-    public void setCodePostale(String codePostale) {
-        this.codePostale = codePostale;
     }
 
     public BigDecimal getPricePerNight() {
         return pricePerNight;
     }
 
-    public void setPricePerNight(BigDecimal pricePerNight) {
-        this.pricePerNight = pricePerNight;
-    }
-
     public Integer getNbOfGuests() {
         return nbOfGuests;
-    }
-
-    public void setNbOfGuests(Integer nbOfGuests) {
-        this.nbOfGuests = nbOfGuests;
     }
 
     public Integer getNbOfBedrooms() {
         return nbOfBedrooms;
     }
 
-    public void setNbOfBedrooms(Integer nbOfBedrooms) {
-        this.nbOfBedrooms = nbOfBedrooms;
-    }
-
     public Integer getNbOfBeds() {
         return nbOfBeds;
-    }
-
-    public void setNbOfBeds(Integer nbOfBeds) {
-        this.nbOfBeds = nbOfBeds;
     }
 
     public Integer getNbOfBathrooms() {
         return nbOfBathrooms;
     }
 
-    public void setNbOfBathrooms(Integer nbOfBathrooms) {
-        this.nbOfBathrooms = nbOfBathrooms;
+    public List<PropertyImageDto> getImages() {
+        return images;
     }
 
-    public List<String> getImageFolderPath() {
-        return imageFolderPath;
-    }
-
-    public void setImageFolderPath(List<String> imageFolderPath) {
-        this.imageFolderPath = imageFolderPath;
+    public String getMainImageUrl() {
+        return mainImageUrl;
     }
 
     public PropertyStatus getStatus() {
         return status;
     }
 
-    public void setStatus(PropertyStatus status) {
-        this.status = status;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 
     public LocalDateTime getLastUpdateAt() {
         return lastUpdateAt;
     }
 
-    public void setLastUpdateAt(LocalDateTime lastUpdateAt) {
-        this.lastUpdateAt = lastUpdateAt;
-    }
-
     public List<CharacteristicDto> getCharacteristics() {
         return characteristics;
+    }
+
+    // ========== SETTERS ==========
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setPropertyId(String propertyId) {
+        this.propertyId = propertyId;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setAddressName(String addressName) {
+        this.addressName = addressName;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public void setCodePostale(String codePostale) {
+        this.codePostale = codePostale;
+    }
+
+    public void setPricePerNight(BigDecimal pricePerNight) {
+        this.pricePerNight = pricePerNight;
+    }
+
+    public void setNbOfGuests(Integer nbOfGuests) {
+        this.nbOfGuests = nbOfGuests;
+    }
+
+    public void setNbOfBedrooms(Integer nbOfBedrooms) {
+        this.nbOfBedrooms = nbOfBedrooms;
+    }
+
+    public void setNbOfBeds(Integer nbOfBeds) {
+        this.nbOfBeds = nbOfBeds;
+    }
+
+    public void setNbOfBathrooms(Integer nbOfBathrooms) {
+        this.nbOfBathrooms = nbOfBathrooms;
+    }
+
+    public void setImages(List<PropertyImageDto> images) {
+        this.images = images;
+    }
+
+    public void setMainImageUrl(String mainImageUrl) {
+        this.mainImageUrl = mainImageUrl;
+    }
+
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setLastUpdateAt(LocalDateTime lastUpdateAt) {
+        this.lastUpdateAt = lastUpdateAt;
     }
 
     public void setCharacteristics(List<CharacteristicDto> characteristics) {

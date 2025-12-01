@@ -91,6 +91,30 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter)
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(authServiceUrl))
+                .route("auth_create_agent", r -> r
+                        .path("/api/auth/users/admin/agents")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+                .route("auth_get_all_agents", r -> r
+                        .path("/api/auth/users/admin/agents")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+                .route("auth_delete_agent", r -> r
+                        .path("/api/auth/users/admin/agents/{agentId}")
+                        .and().method("DELETE")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
 
                 // ==================== WALLET MANAGEMENT ====================
                 .route("wallet_connect", r -> r
@@ -196,11 +220,33 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
-                // ✅ NOUVEAU: Endpoint pour compter les properties actives
                 .route("listing_owner_active_count", r -> r
                         .path("/api/listings/properties/owner/{ownerId}/active-count")
                         .and().method("GET")
-                        .filters(f -> f.stripPrefix(2)) // Public - Auth Service a besoin
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
+
+                // ---------- PROPERTY STATUS SHORTCUTS - Protected Routes ----------
+                .route("listing_submit_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/submit")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+                .route("listing_hide_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/hide")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+                .route("listing_unhide_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/unhide")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
                 // ---------- PROPERTY IMAGES - Protected Routes ----------
@@ -211,8 +257,15 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
+                .route("listing_set_main_image", r -> r
+                        .path("/api/listings/properties/{propertyId}/images/{imageId}/set-main")
+                        .and().method("PUT")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
                 .route("listing_delete_image", r -> r
-                        .path("/api/listings/properties/{propertyId}/images")
+                        .path("/api/listings/properties/{propertyId}/images/{imageId}")
                         .and().method("DELETE")
                         .filters(f -> f
                                 .stripPrefix(2)

@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "properties")
@@ -78,13 +79,12 @@ public class PropertyEntity implements Serializable {
     @Column(nullable = false)
     private Integer nbOfBathrooms;
 
-    // Images
-    @ElementCollection
-    @CollectionTable(name = "property_images", joinColumns = @JoinColumn(name = "property_id"))
-    @Column(name = "image_path", length = 500)
-    private List<String> imageFolderPath = new ArrayList<>();
+    // ✅ NOUVEAU: Images avec relation OneToMany
+    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    private List<PropertyImage> images = new ArrayList<>();
 
-    // ✅ NOUVEAU: Status unique avec enum
+    // Status avec enum
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private PropertyStatus status = PropertyStatus.DRAFT;
@@ -105,7 +105,35 @@ public class PropertyEntity implements Serializable {
     @JsonManagedReference
     private List<Characteristic> characteristics = new ArrayList<>();
 
-    // ✅ Méthodes helper pour faciliter les transitions
+    // ========== IMAGE HELPER METHODS ==========
+
+    public PropertyImage getMainImage() {
+        return images.stream()
+                .filter(PropertyImage::getIsMain)
+                .findFirst()
+                .orElse(images.isEmpty() ? null : images.get(0));
+    }
+
+    public void setMainImage(Long imageId) {
+        images.forEach(img -> img.setIsMain(img.getId().equals(imageId)));
+    }
+
+    public List<String> getImageUrls() {
+        return images.stream()
+                .map(PropertyImage::getImageUrl)
+                .collect(Collectors.toList());
+    }
+
+    public List<PropertyImage> getImages() {
+        return images;
+    }
+
+    public void setImages(List<PropertyImage> images) {
+        this.images = images;
+    }
+
+    // ========== STATUS HELPER METHODS ==========
+
     public boolean isPubliclyVisible() {
         return status != null && status.isPubliclyVisible();
     }
@@ -172,7 +200,8 @@ public class PropertyEntity implements Serializable {
         }
     }
 
-    // Helper methods
+    // ========== CHARACTERISTIC HELPER METHODS ==========
+
     public void addCharacteristic(Characteristic characteristic) {
         this.characteristics.add(characteristic);
         characteristic.getProperties().add(this);
@@ -182,6 +211,8 @@ public class PropertyEntity implements Serializable {
         this.characteristics.remove(characteristic);
         characteristic.getProperties().remove(this);
     }
+
+    // ========== JPA LIFECYCLE ==========
 
     @PrePersist
     protected void onCreate() {
@@ -197,7 +228,8 @@ public class PropertyEntity implements Serializable {
         lastUpdateAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
+    // ========== GETTERS AND SETTERS ==========
+
     public Long getId() {
         return id;
     }
@@ -351,14 +383,6 @@ public class PropertyEntity implements Serializable {
 
     public void setNbOfBathrooms(Integer nbOfBathrooms) {
         this.nbOfBathrooms = nbOfBathrooms;
-    }
-
-    public List<String> getImageFolderPath() {
-        return imageFolderPath;
-    }
-
-    public void setImageFolderPath(List<String> imageFolderPath) {
-        this.imageFolderPath = imageFolderPath;
     }
 
     public PropertyStatus getStatus() {

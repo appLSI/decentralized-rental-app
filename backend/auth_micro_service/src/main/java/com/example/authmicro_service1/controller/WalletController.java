@@ -1,7 +1,7 @@
 package com.example.authmicro_service1.controller;
 
 import com.example.authmicro_service1.requests.WalletUpdateRequest;
-import com.example.authmicro_service1.services.WalletService;
+import com.example.authmicro_service1.services.impl.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
