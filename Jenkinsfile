@@ -59,28 +59,40 @@ pipeline {
                 }
             }
         }
-        stage('Test Smart Contracts') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'RPC_URL', variable: 'RPC_URL'),
-                    string(credentialsId: 'PRIVATE_KEY', variable: 'PRIVATE_KEY'),
-                    string(credentialsId: 'PRIVATE_KEY_TENANT', variable: 'PRIVATE_KEY_TENANT')
-                ]) {
-                    dir('blockchain') {
-                        sh '''
-                        # create temporary .env for this build
-                        echo "SEPOLIA_RPC_URL=$RPC_URL" > .env
-                        echo "PRIVATE_KEY_OWNER=$PRIVATE_KEY" >> .env
-                        echo "PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT" >> .env
-                        # install dependencies
-                        npm ci
-                       # run your interact script
-                       node scripts/interact.js
-                        '''
-                    }
-                }
+
+        stage('Compile Smart Contracts') {
+    steps {
+        dir('blockchain') {
+            sh '''
+                npm ci
+                npx hardhat compile
+            '''
+        }
+    }
+}
+
+stage('Test Smart Contracts') {
+    steps {
+        withCredentials([
+            string(credentialsId: 'RPC_URL', variable: 'SEPOLIA_RPC_URL'),
+            string(credentialsId: 'PRIVATE_KEY', variable: 'PRIVATE_KEY'),
+            string(credentialsId: 'PRIVATE_KEY_TENANT', variable: 'PRIVATE_KEY_TENANT')
+        ]) {
+            dir('blockchain') {
+                sh '''
+                    # inject secrets
+                    echo "SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL" > .env
+                    echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
+                    echo "PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT" >> .env
+
+                    # run tests on Sepolia
+                    npx hardhat test --network sepolia
+                '''
             }
         }
+    }
+}
+
         
         stage('Docker Build') {
             steps {
