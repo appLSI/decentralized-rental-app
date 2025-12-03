@@ -75,7 +75,7 @@ pipeline {
                         # install dependencies
                         npm install
                         # run smart contract tests
-                        npx hardhat test --network sepolia
+                        npx hardhat test 
                         '''
                     }
                 }
