@@ -73,7 +73,7 @@ pipeline {
         */
         stage('Docker Build') {
             steps {
-                sh 'docker compose build'
+                sh 'sudo docker compose build'
             }
         }
 
