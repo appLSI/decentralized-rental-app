@@ -73,9 +73,9 @@ pipeline {
                         echo "PRIVATE_KEY_OWNER=$PRIVATE_KEY" >> .env
                         echo "PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT" >> .env
                         # install dependencies
-                        npm install
-                        # run smart contract tests
-                        npx hardhat test 
+                        npm ci
+                       # run your interact script
+                       node scripts/interact.js
                         '''
                     }
                 }
