@@ -59,18 +59,29 @@ pipeline {
                 }
             }
         }
-
-       /* stage('Test Smart Contracts') {
+        stage('Test Smart Contracts') {
             steps {
-                dir('blockchain') {
-                    sh '''
+                withCredentials([
+                    string(credentialsId: 'RPC_URL', variable: 'RPC_URL'),
+                    string(credentialsId: 'PRIVATE_KEY', variable: 'PRIVATE_KEY'),
+                    string(credentialsId: 'PRIVATE_KEY_TENANT', variable: 'PRIVATE_KEY_TENANT')
+                ]) {
+                    dir('blockchain') {
+                        sh '''
+                        # create temporary .env for this build
+                        echo "SEPOLIA_RPC_URL=$RPC_URL" > .env
+                        echo "PRIVATE_KEY_OWNER=$PRIVATE_KEY" >> .env
+                        echo "PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT" >> .env
+                        # install dependencies
                         npm install
-                        npx hardhat test
-                    '''
+                        # run smart contract tests
+                        npx hardhat test --network sepolia
+                        '''
+                    }
                 }
             }
         }
-        */
+        
         stage('Docker Build') {
             steps {
                 sh 'docker-compose build'
