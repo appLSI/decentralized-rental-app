@@ -1,8 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
-const PRIVATE_KEY_OWNER = process.env.PRIVATE_KEY_OWNER;  // clé du propriétaire
+const SEPOLIA_RPC_URL = process.env.RPC_URL;
+const PRIVATE_KEY_OWNER = process.env.PRIVATE_KEY;  // clé du propriétaire
 const PRIVATE_KEY_TENANT = process.env.PRIVATE_KEY_TENANT; // clé du locataire
 
 /** @type import('hardhat/config').HardhatUserConfig */
