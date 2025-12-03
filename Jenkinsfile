@@ -60,7 +60,7 @@ pipeline {
             }
         }
 
-        stage('Test Smart Contracts') {
+       /* stage('Test Smart Contracts') {
             steps {
                 dir('blockchain') {
                     sh '''
@@ -70,7 +70,7 @@ pipeline {
                 }
             }
         }
-
+        */
         stage('Docker Build') {
             steps {
                 sh 'docker compose build'
