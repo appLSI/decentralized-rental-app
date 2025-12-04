@@ -94,7 +94,7 @@ pipeline {
         stage('Docker Build & Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'noha552') {
+                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-credentials') {
                         
                         // Auth microservice
                         def authImage = docker.build("noha552/auth_micro_service:${env.BUILD_NUMBER}", "backend/auth_micro_service")
