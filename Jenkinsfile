@@ -8,6 +8,11 @@ pipeline {
 
     environment {
         GITHUB_TOKEN = credentials('github-token')
+        
+        RPC_URL = credentials('RPC_URL')
+        PRIVATE_KEY = credentials('PRIVATE_KEY')
+        PRIVATE_KEY_TENANT = credentials('PRIVATE_KEY_TENANT')
+
     }
 
     triggers {
@@ -71,32 +76,17 @@ pipeline {
     }
 }
 
-stage('Test Smart Contracts') {
-    steps {
-        withCredentials([
-            string(credentialsId: 'RPC_URL', variable: 'SEPOLIA_RPC_URL'),
-            string(credentialsId: 'PRIVATE_KEY', variable: 'PRIVATE_KEY'),
-            string(credentialsId: 'PRIVATE_KEY_TENANT', variable: 'PRIVATE_KEY_TENANT')
-        ]) {
-            dir('blockchain') {
-                sh '''
-                    # inject secrets
-                    echo "SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL" > .env
-                    echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
-                    echo "PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT" >> .env
 
-                    # run tests on Sepolia
-                    npx hardhat test --network sepolia
-                '''
-            }
-        }
-    }
-}
 
         
         stage('Docker Build') {
             steps {
-                sh 'docker-compose build'
+              sh """
+              docker-compose build \
+              --build-arg RPC_URL=$RPC_URL \
+              --build-arg PRIVATE_KEY=$PRIVATE_KEY \
+              --build-arg PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT
+              """
             }
         }
 
