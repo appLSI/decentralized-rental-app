@@ -25,6 +25,13 @@ public class GatewayConfig {
     @Value("${listing.service.url}")
     private String listingServiceUrl;
 
+    // AJOUT : URLs des nouveaux services
+    @Value("${booking.service.url}")
+    private String bookingServiceUrl;
+
+    @Value("${payment.service.url}")
+    private String paymentServiceUrl;
+
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
@@ -76,13 +83,7 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(authServiceUrl))
-                .route("auth_update_wallet", r -> r
-                        .path("/api/auth/users/{id}/wallet")
-                        .and().method("PUT")
-                        .filters(f -> f
-                                .stripPrefix(2)
-                                .filter(jwtAuthenticationFilter))
-                        .uri(authServiceUrl))
+                // Note: auth_update_wallet supprimé ici car géré dans WALLET MANAGEMENT plus bas
                 .route("auth_delete_user", r -> r
                         .path("/api/auth/users/{id}")
                         .and().method("DELETE")
@@ -90,6 +91,60 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter)
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+                .route("auth_create_agent", r -> r
+                        .path("/api/auth/users/admin/agents")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+                .route("auth_get_all_agents", r -> r
+                        .path("/api/auth/users/admin/agents")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+                .route("auth_delete_agent", r -> r
+                        .path("/api/auth/users/admin/agents/{agentId}")
+                        .and().method("DELETE")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(authServiceUrl))
+
+                // ==================== WALLET MANAGEMENT ====================
+                .route("wallet_connect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/connect")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_disconnect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/disconnect")
+                        .and().method("DELETE")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_can_disconnect", r -> r
+                        .path("/api/auth/users/{userId}/wallet/can-disconnect")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(authServiceUrl))
+                .route("wallet_status", r -> r
+                        .path("/api/auth/users/{userId}/wallet/status")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
                         .uri(authServiceUrl))
 
                 // ==================== LISTING SERVICE ====================
@@ -166,8 +221,70 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
+                .route("listing_owner_active_count", r -> r
+                        .path("/api/listings/properties/owner/{ownerId}/active-count")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
 
-                // ---------- PROPERTY IMAGES - Protected Routes ----------
+                // ---------- ADMIN PROPERTIES (Missing in your code) ----------
+                .route("listing_admin_pending_properties", r -> r
+                        .path("/api/listings/admin/properties/pending")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(listingServiceUrl))
+                .route("listing_admin_validate_property", r -> r
+                        .path("/api/listings/admin/properties/{propertyId}/validate")
+                        .and().method("PUT")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(listingServiceUrl))
+                .route("listing_admin_reject_property", r -> r
+                        .path("/api/listings/admin/properties/{propertyId}/reject")
+                        .and().method("PUT")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(listingServiceUrl))
+                .route("listing_admin_force_status", r -> r
+                        .path("/api/listings/admin/properties/{propertyId}/force-status")
+                        .and().method("PUT")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter)
+                                .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
+                        .uri(listingServiceUrl))
+
+                // ---------- PROPERTY STATUS SHORTCUTS ----------
+                .route("listing_submit_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/submit")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+                .route("listing_hide_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/hide")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+                .route("listing_unhide_property", r -> r
+                        .path("/api/listings/properties/{propertyId}/unhide")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+
+                // ---------- PROPERTY IMAGES ----------
                 .route("listing_upload_images", r -> r
                         .path("/api/listings/properties/{propertyId}/images")
                         .and().method("POST")
@@ -175,15 +292,22 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
+                .route("listing_set_main_image", r -> r
+                        .path("/api/listings/properties/{propertyId}/images/{imageId}/set-main")
+                        .and().method("PUT")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
                 .route("listing_delete_image", r -> r
-                        .path("/api/listings/properties/{propertyId}/images")
+                        .path("/api/listings/properties/{propertyId}/images/{imageId}")
                         .and().method("DELETE")
                         .filters(f -> f
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
-                // ---------- CHARACTERISTICS - Public GET ----------
+                // ---------- CHARACTERISTICS ----------
                 .route("listing_get_all_characteristics", r -> r
                         .path("/api/listings/characteristics")
                         .and().method("GET")
@@ -194,8 +318,6 @@ public class GatewayConfig {
                         .and().method("GET")
                         .filters(f -> f.stripPrefix(2))
                         .uri(listingServiceUrl))
-
-                // ---------- CHARACTERISTICS - Admin Only (CUD) ----------
                 .route("listing_create_characteristic", r -> r
                         .path("/api/listings/characteristics")
                         .and().method("POST")
@@ -221,7 +343,7 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
 
-                // ---------- TYPE CARACTERISTIQUES - Public GET ----------
+                // ---------- TYPE CARACTERISTIQUES ----------
                 .route("listing_get_all_types", r -> r
                         .path("/api/listings/type-caracteristiques")
                         .and().method("GET")
@@ -232,8 +354,6 @@ public class GatewayConfig {
                         .and().method("GET")
                         .filters(f -> f.stripPrefix(2))
                         .uri(listingServiceUrl))
-
-                // ---------- TYPE CARACTERISTIQUES - Admin Only (CUD) ----------
                 .route("listing_create_type", r -> r
                         .path("/api/listings/type-caracteristiques")
                         .and().method("POST")
@@ -259,7 +379,7 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
 
-                // ---------- OWNERS - Mixed Access ----------
+                // ---------- OWNERS ----------
                 .route("listing_check_owner_status", r -> r
                         .path("/api/listings/owners/check/{userId}")
                         .and().method("GET")
@@ -280,6 +400,66 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter)
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
+
+                // ==================== BOOKING SERVICE (NOUVEAU) ====================
+                // Prefix: /api/bookings -> StripPrefix(1) -> /bookings
+                .route("booking_create", r -> r
+                        .path("/api/bookings")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(bookingServiceUrl))
+                .route("booking_confirm_payment", r -> r
+                        .path("/api/bookings/{bookingId}/confirm-payment")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(bookingServiceUrl))
+                .route("booking_cancel", r -> r
+                        .path("/api/bookings/{bookingId}/cancel")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(bookingServiceUrl))
+                .route("booking_get_mine", r -> r
+                        .path("/api/bookings/my-bookings")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(bookingServiceUrl))
+                .route("booking_get_by_id", r -> r
+                        .path("/api/bookings/{bookingId}")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(bookingServiceUrl))
+
+                // ==================== PAYMENT SERVICE (NOUVEAU) ====================
+                // Prefix: /api/payments -> StripPrefix(1) -> /payments
+                .route("payment_validate", r -> r
+                        .path("/api/payments/validate")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(paymentServiceUrl))
+                .route("payment_history_by_booking", r -> r
+                        .path("/api/payments/booking/{bookingId}")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(1)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(paymentServiceUrl))
+                .route("payment_health", r -> r
+                        .path("/api/payments/health")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(1))
+                        .uri(paymentServiceUrl))
 
                 .build();
     }

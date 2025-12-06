@@ -1,4 +1,4 @@
-package ma.fstt.listingservice.exceptions;
+package ma.fstt.paymentservice.exception;
 
 public class UnauthorizedException extends RuntimeException {
     public UnauthorizedException(String message) {
