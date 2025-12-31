@@ -103,7 +103,7 @@ services:
   # ==================== PAYMENT SERVICE ====================
   payment-service:
     build:
-      context: ./backend/PaymentService
+      context: ./backend/paymentservice
       dockerfile: Dockerfile
     container_name: payment-service
     ports:
