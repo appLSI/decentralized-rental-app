@@ -68,14 +68,19 @@ pipeline {
         stage('Compile Smart Contracts') {
     steps {
         dir('blockchain') {
-            sh '''
-                npm ci
-                npx hardhat compile
-            '''
+            withEnv([
+                "RPC_URL=${env.RPC_URL}",
+                "PRIVATE_KEY=${env.PRIVATE_KEY}",
+                "PRIVATE_KEY_TENANT=${env.PRIVATE_KEY_TENANT}"
+            ]) {
+                sh '''
+                    npm ci
+                    npx hardhat compile
+                '''
+            }
         }
     }
 }
-
 
 
         
