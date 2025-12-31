@@ -13,16 +13,6 @@ RUN npm ci
 # Copy the rest of the project files
 COPY . .
 
-ARG RPC_URL
-ARG PRIVATE_KEY
-ARG PRIVATE_KEY_TENANT
-
-ENV RPC_URL=${RPC_URL}
-ENV PRIVATE_KEY=${PRIVATE_KEY}
-ENV PRIVATE_KEY_TENANT=${PRIVATE_KEY_TENANT}
-
-# Compile smart contracts with Hardhat 2.26.3 (Solidity 0.8.28)
-RUN npx hardhat compile
 
 
 # ---------------------------------------------------------
