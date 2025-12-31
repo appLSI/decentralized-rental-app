@@ -86,12 +86,7 @@ pipeline {
         
         stage('Docker Build') {
             steps {
-              sh """
-              docker-compose build \
-              --build-arg RPC_URL=$RPC_URL \
-              --build-arg PRIVATE_KEY=$PRIVATE_KEY \
-              --build-arg PRIVATE_KEY_TENANT=$PRIVATE_KEY_TENANT
-              """
+              sh 'docker-compose build'
             }
         }
 
