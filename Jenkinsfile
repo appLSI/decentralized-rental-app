@@ -27,14 +27,14 @@ pipeline {
             }
         }
 
-        /*stage('Build Backend') {
+        stage('Build Backend') {
             steps {
                 dir('backend/auth_micro_service') {
                     sh 'mvn clean package -DskipTests'
                     sh 'mvn clean package -DskipTests -Dproject.build.sourceEncoding=UTF-8'
                 }
             }
-        } */
+        } 
         /*stage('Test Backend') {
         environment { 
             SPRING_PROFILES_ACTIVE = 'test' 
