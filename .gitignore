@@ -21,3 +21,17 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+
+# Blockchain 
+node_modules/
+
+# Hardhat (Blockchain)
+blockchain/artifacts/
+blockchain/cache/
+blockchain/build-info/
+
+# Env files
+.env
+.env.*
+

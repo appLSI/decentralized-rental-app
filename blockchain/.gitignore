@@ -10,7 +10,6 @@ yarn-error.log
 artifacts/
 cache/
 typechain/
-typechain-types/
 coverage/
 coverage.json
 
@@ -18,6 +17,7 @@ coverage.json
 .DS_Store
 .vscode/
 .idea/
+
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337

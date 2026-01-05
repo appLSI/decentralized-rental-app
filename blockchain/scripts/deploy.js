@@ -4,7 +4,7 @@ require("dotenv").config();
 
 async function main() {
   const RPC_URL = process.env.SEPOLIA_RPC_URL;
-  const OWNER_KEY = process.env.PRIVATE_KEY_OWNER;
+  const OWNER_KEY = process.env.PRIVATE_KEY;
   const TENANT_KEY = process.env.PRIVATE_KEY_TENANT;
 
   const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -21,7 +21,7 @@ async function main() {
 
   // Timestamps
   const currentTime = Math.floor(Date.now() / 1000);
-  const leaseStart = currentTime + 60;             // 1 minute après
+  const leaseStart = currentTime + 60;           // 1 minute après
   const leaseEnd = currentTime + 60 * 60 * 24 * 7; // 7 jours après
 
   // Déploiement
@@ -48,4 +48,3 @@ main().catch((error) => {
   console.error("❌ Erreur lors du déploiement :", error);
   process.exitCode = 1;
 });
-
