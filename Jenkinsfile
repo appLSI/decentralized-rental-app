@@ -27,7 +27,7 @@ pipeline {
             }
         }
 
-        stage('Build Backend') {
+        /*stage('Build Backend') {
             steps {
                 dir('backend/auth_micro_service') {
                     sh 'mvn clean package -DskipTests'
