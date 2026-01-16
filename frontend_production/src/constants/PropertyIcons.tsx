@@ -1,0 +1,85 @@
+// src/components/PropertyIcons.tsx
+import React from "react";
+import {
+    Wifi,
+    Tv,
+    Coffee,
+    Wind,
+    Users,
+    Bed,
+    Bath,
+    MapPin,
+    Sun,
+    Thermometer,
+    Droplet,
+    Lock,
+    Camera,
+    Shield,
+    Key,
+    Heart,
+    Flame,
+    Umbrella,
+    Gift,
+    Globe,
+    Dumbbell,
+    Waves,
+    Building2,
+    Home,
+    Trees,
+    Hotel,
+    Castle
+} from "lucide-react";
+
+// Map characteristic names to Lucide icons (React components)
+export const PropertyIcons: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
+    "WiFi": Wifi,
+    "Télévision": Tv,
+    "Cuisine": Coffee,           // using Coffee as kitchen placeholder
+    "Lave-linge": Wind,          // placeholder icon
+    "Sèche-linge": Wind,         // placeholder icon
+    "Lave-vaisselle": Droplet,   // placeholder
+    "Climatisation": Thermometer,
+    "Chauffage": Sun,
+    "Fer à repasser": Thermometer,
+    "Sèche-cheveux": Thermometer,
+    "Parking gratuit": Key,
+    "Parking payant": Key,
+    "Ménage inclus": Gift,
+    "Service de conciergerie": Globe,
+    "Petit-déjeuner inclus": Coffee,
+    "Check-in automatique": Key,
+    "Bagagerie disponible": Umbrella,
+    "Détecteur de fumée": Shield,
+    "Détecteur de monoxyde de carbone": Shield,
+    "Extincteur": Lock,
+    "Trousse de premiers secours": Heart,
+    "Coffre-fort": Lock,
+    "Caméras de sécurité": Camera,
+    "Gardien": Shield,
+    "Draps et serviettes fournis": Umbrella,
+    "Produits de toilette": Droplet,
+    "Espace de travail": Coffee,
+    "Cheminée": Flame,
+    "Baignoire": Droplet,
+    "Douche à l'italienne": Droplet,
+    "Vue panoramique": Globe,
+    "Piscine": Droplet,
+    "Jacuzzi": Droplet,
+    "Terrasse": Umbrella,
+    "Balcon": Umbrella,
+    "Jardin": Umbrella,
+    "Barbecue": Flame,        // using Flame for barbecue
+    "Salle de sport": Dumbbell,
+    "Vue sur mer": Waves,
+    "Vue sur montagne": Globe,
+    "Accès plage privée": Waves,
+
+    // Property Types
+    "APARTMENT": Building2,
+    "HOUSE": Home,
+    "VILLA": Home,
+    "CONDO": Building2,
+    "CABIN": Trees,
+    "ROOM": Hotel,
+    "CASTLE": Castle,
+};
