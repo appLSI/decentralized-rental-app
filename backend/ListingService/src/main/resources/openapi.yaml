@@ -1,0 +1,14 @@
+openapi: 3.0.0
+info:
+  title: Listing Service API
+  version: 1.0.0
+  description: API documentation for Listing Service
+paths:
+    /listings:
+      get:
+        operationId: getListings
+        summary: "Get all listings"
+        responses:
+          '200':
+            description: "A list of listings"
+

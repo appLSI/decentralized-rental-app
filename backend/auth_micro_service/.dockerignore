@@ -1,0 +1,22 @@
+# === Maven build files ===
+target/
+!target/*.jar
+
+# === Git ===
+.git
+.gitignore
+
+# === IDE files ===
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# === Logs and temp ===
+*.log
+logs/
+tmp/
+
+# === OS files ===
+.DS_Store
+Thumbs.db
