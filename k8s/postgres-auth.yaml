@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-auth-pvc
+  namespace: rental-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-auth
+  namespace: rental-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-auth
+  template:
+    metadata:
+      labels:
+        app: postgres-auth
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "auth_location_db"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: POSTGRES_AUTH_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres-data # Résout l'erreur initdb: directory not empty
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - auth_location_db
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - auth_location_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-auth-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-auth
+  namespace: rental-app
+spec:
+  selector:
+    app: postgres-auth
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP

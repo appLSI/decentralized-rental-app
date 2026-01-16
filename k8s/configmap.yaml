@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: rental-app
+data:
+  # AWS S3
+  AWS_REGION: "eu-west-3"
+  AWS_BUCKET_NAME: "rental-app-images"
+  
+  # RabbitMQ Exchange & Routing Keys
+  RABBITMQ_EXCHANGE: "booking.exchange"
+  RABBITMQ_ROUTING_KEY_CREATED: "booking.created"
+  RABBITMQ_ROUTING_KEY_CANCELLED: "booking.cancelled"
+  RABBITMQ_ROUTING_KEY_CONFIRMED: "booking.confirmed"
+  RABBITMQ_ROUTING_KEY_EXPIRED: "booking.expired"
+  RABBITMQ_QUEUE_PAYMENT_CONFIRMED: "payment.confirmed.queue"
+  RABBITMQ_QUEUE_PAYMENT_FAILED: "payment.failed.queue"
+  
+  # Payment Exchange
+  PAYMENT_EXCHANGE: "payment.exchange"
+  PAYMENT_ROUTING_KEY_CONFIRMED: "payment.confirmed"
+  PAYMENT_ROUTING_KEY_FAILED: "payment.failed"
+  
+  # Java Options
+  JAVA_OPTS: "-Xmx512m -Xms256m"

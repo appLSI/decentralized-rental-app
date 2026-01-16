@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: rental-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: abde142/auth-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://db-auth:5432/auth_location_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: POSTGRES_AUTH_PASSWORD
+        - name: SPRING_RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: SPRING_RABBITMQ_PORT
+          value: "5672"
+        - name: SPRING_RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: RABBITMQ_USER
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: RABBITMQ_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: JWT_SECRET
+        - name: GMAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: GMAIL_USERNAME
+        - name: GMAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: GMAIL_PASSWORD
+        imagePullPolicy: Always
+        
+        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: rental-app
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP

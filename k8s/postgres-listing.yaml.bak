@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-listing-pvc
+  namespace: rental-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-listing
+  namespace: rental-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-listing
+  template:
+    metadata:
+      labels:
+        app: postgres-listing
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "listing_db"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: POSTGRES_LISTING_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - listing_db
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - listing_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-listing-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-listing
+  namespace: rental-app
+spec:
+  selector:
+    app: postgres-listing
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
