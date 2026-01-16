@@ -6,8 +6,20 @@ module.exports = {
   networks: {
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL,
-      accounts: [process.env.PRIVATE_KEY]
+      accounts: [
+        process.env.PRIVATE_KEY,
+        process.env.PRIVATE_KEY_TENANT,
+        process.env.PLATFORM_OWNER
+      ].filter(key => key !== undefined) // Filtre les clés non définies
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545"
     }
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
   }
 };
-

@@ -1,137 +1,246 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/**
+ * @title RentalEscrow
+ * @dev Version HYBRIDE : Simple + Sécurisée (ADMIN REMOVED)
+ * @notice Pour tests / POC / démo
+ */
 contract RentalEscrow {
-    enum State { Created, Funded, Active, Completed, Cancelled }
-    State public state;
 
-    address payable public owner;          // propriétaire du logement
-    address payable public tenant;         // locataire
-    address payable public platformOwner;  // propriétaire de l'app
+    // ========================= ENUMS & STRUCTURES =========================
+    enum Status { 
+        AWAITING_PAYMENT,
+        PAID,
+        COMPLETED,
+        CANCELLED,
+        DISPUTED
+    }
 
-    uint256 public rentAmount;
-    uint256 public leaseStart;
-    uint256 public leaseEnd;
-    uint256 public platformFeePercent = 5; // commission plateforme en %
+    struct Booking {
+        uint256 id;
+        address payable tenant;
+        address payable owner;
+        uint256 amount;
+        uint256 platformFee;
+        uint256 leaseStart;
+        uint256 leaseEnd;
+        Status status;
+        bool exists;
+        bool locked;
+    }
 
-    bool private locked;
+    // ========================= STORAGE =========================
+    mapping(uint256 => Booking) public bookings;
 
-    // ========================= Events =========================
-    event Funded(address indexed tenant, uint256 totalAmount, uint256 platformFee, uint256 ownerAmount);
-    event LeaseStarted(uint256 startDate);
-    event Completed(address indexed owner, uint256 ownerAmount, uint256 platformAmount);
-    event Cancelled(address indexed by);
-    event Refunded(address indexed tenant, uint256 amount);
-    event Penalized(address indexed tenant, uint256 penaltyAmount);
-    event Dispute(address indexed initiator, string reason);
-    event PlatformFeeUpdated(uint256 newFee);
+    address payable public platformWallet;
+    address public admin;
+    uint256 public defaultFeePercent = 5;
 
-    constructor(
-        address payable _owner,
+    // ========================= EVENTS =========================
+    event BookingCreated(
+        uint256 indexed bookingId,
+        address indexed tenant,
+        address indexed owner,
+        uint256 amount,
+        uint256 platformFee
+    );
+
+    event PaymentReceived(uint256 indexed bookingId, address from, uint256 amount);
+    event FundsReleased(uint256 indexed bookingId, address indexed owner, uint256 ownerAmount, uint256 platformFee);
+    event Cancelled(uint256 indexed bookingId, address refundedTo, uint256 amount);
+    event Disputed(uint256 indexed bookingId, string reason);
+    event FeeUpdated(uint256 newFeePercent);
+
+    // ========================= CONSTRUCTOR =========================
+    constructor() {
+        admin = msg.sender;
+        platformWallet = payable(msg.sender);
+    }
+
+    // ========================= MODIFIERS =========================
+    modifier validBooking(uint256 _bookingId) {
+        require(bookings[_bookingId].exists, "Reservation introuvable");
+        _;
+    }
+
+    modifier nonReentrant(uint256 _bookingId) {
+        require(!bookings[_bookingId].locked, "Operation deja en cours");
+        bookings[_bookingId].locked = true;
+        _;
+        bookings[_bookingId].locked = false;
+    }
+
+    // ========================= CORE FUNCTIONS =========================
+
+    function createBooking(
+        uint256 _bookingId,
         address payable _tenant,
-        address payable _platformOwner,
-        uint256 _rentAmount,
+        address payable _owner,
+        uint256 _amount,
         uint256 _leaseStart,
         uint256 _leaseEnd
-    ) {
-        require(_leaseEnd > _leaseStart, "leaseEnd doit etre superieur a leaseStart");
-        owner = _owner;
-        tenant = _tenant;
-        platformOwner = _platformOwner;
-        rentAmount = _rentAmount;
-        leaseStart = _leaseStart;
-        leaseEnd = _leaseEnd;
-        state = State.Created;
-        locked = false;
+    ) external {
+        require(!bookings[_bookingId].exists, "ID deja utilise");
+        require(_tenant != address(0), "Adresse tenant invalide");
+        require(_owner != address(0), "Adresse owner invalide");
+        require(_amount > 0, "Montant invalide");
+
+        uint256 fee = (_amount * defaultFeePercent) / 100;
+
+        bookings[_bookingId] = Booking({
+            id: _bookingId,
+            tenant: _tenant,
+            owner: _owner,
+            amount: _amount,
+            platformFee: fee,
+            leaseStart: _leaseStart,
+            leaseEnd: _leaseEnd,
+            status: Status.AWAITING_PAYMENT,
+            exists: true,
+            locked: false
+        });
+
+        emit BookingCreated(_bookingId, _tenant, _owner, _amount, fee);
     }
 
-    // ========================= Modifiers =========================
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Seul le proprietaire");
-        _;
+    function payRent(uint256 _bookingId)
+        external
+        payable
+        validBooking(_bookingId)
+        nonReentrant(_bookingId)
+    {
+        Booking storage booking = bookings[_bookingId];
+
+        require(booking.status == Status.AWAITING_PAYMENT, "Statut invalide");
+        require(msg.value == booking.amount, "Montant incorrect");
+
+        booking.status = Status.PAID;
+        emit PaymentReceived(_bookingId, msg.sender, msg.value);
     }
 
-    modifier onlyTenant() {
-        require(msg.sender == tenant, "Seul le locataire");
-        _;
+    function releaseFunds(uint256 _bookingId)
+        external
+        validBooking(_bookingId)
+        nonReentrant(_bookingId)
+    {
+        Booking storage booking = bookings[_bookingId];
+        require(booking.status == Status.PAID, "Fonds indisponibles");
+
+        booking.status = Status.COMPLETED;
+
+        uint256 ownerShare = booking.amount - booking.platformFee;
+
+        (bool sentOwner, ) = booking.owner.call{value: ownerShare}("");
+        require(sentOwner, "Echec owner");
+
+        (bool sentPlatform, ) = platformWallet.call{value: booking.platformFee}("");
+        require(sentPlatform, "Echec plateforme");
+
+        emit FundsReleased(_bookingId, booking.owner, ownerShare, booking.platformFee);
     }
 
-    modifier onlyPlatformOwner() {
-        require(msg.sender == platformOwner, "Seul le proprietaire de la plateforme");
-        _;
+    function cancelBooking(uint256 _bookingId)
+        external
+        validBooking(_bookingId)
+        nonReentrant(_bookingId)
+    {
+        Booking storage booking = bookings[_bookingId];
+        require(booking.status == Status.PAID, "Rien a annuler");
+
+        booking.status = Status.CANCELLED;
+
+        (bool sent, ) = booking.tenant.call{value: booking.amount}("");
+        require(sent, "Echec remboursement");
+
+        emit Cancelled(_bookingId, booking.tenant, booking.amount);
     }
 
-    modifier nonReentrant() {
-        require(!locked, "Reentrancy detecte");
-        locked = true;
-        _;
-        locked = false;
+    function markAsDisputed(uint256 _bookingId, string memory _reason)
+        external
+        validBooking(_bookingId)
+    {
+        Booking storage booking = bookings[_bookingId];
+        require(booking.status == Status.PAID, "Statut invalide");
+
+        booking.status = Status.DISPUTED;
+        emit Disputed(_bookingId, _reason);
     }
 
-    // ========================= Fonctions =========================
-    // Paiement par le locataire avec commission incluse
-    function fund() external payable onlyTenant nonReentrant {
-        require(state == State.Created, "Paiement deja effectue ou non autorise");
+    function resolveDispute(
+        uint256 _bookingId,
+        uint256 _tenantAmount,
+        uint256 _ownerAmount
+    )
+        external
+        validBooking(_bookingId)
+        nonReentrant(_bookingId)
+    {
+        Booking storage booking = bookings[_bookingId];
+        require(booking.status == Status.DISPUTED, "Pas en litige");
+        require(_tenantAmount + _ownerAmount <= booking.amount, "Montants invalides");
 
-        uint256 platformFee = (msg.value * platformFeePercent) / 100;
-        uint256 ownerAmount = msg.value - platformFee;
+        booking.status = Status.COMPLETED;
 
-        // Transfert immediat à la plateforme
-        (bool sentPlatform, ) = platformOwner.call{value: platformFee}("");
-        require(sentPlatform, "Transfert commission plateforme echoue");
-
-        // Transfert immediat au propriétaire
-        (bool sentOwner, ) = owner.call{value: ownerAmount}("");
-        require(sentOwner, "Transfert proprietaire echoue");
-
-        state = State.Funded;
-        emit Funded(msg.sender, msg.value, platformFee, ownerAmount);
-    }
-
-    function startLease() external onlyOwner {
-        require(state == State.Funded, "Le contrat doit etre finance avant de commencer");
-        require(block.timestamp >= leaseStart, "La date de debut n'est pas encore atteinte");
-
-        state = State.Active;
-        emit LeaseStarted(block.timestamp);
-    }
-
-    function complete() external onlyOwner nonReentrant {
-        require(state == State.Active, "La location doit etre active");
-        require(block.timestamp >= leaseEnd, "La date de fin n'est pas encore atteinte");
-
-        state = State.Completed;
-        emit Completed(owner, 0, 0); // plus rien à payer, tout a été transféré lors de fund()
-    }
-
-    function cancel() external nonReentrant {
-        require(state == State.Created || state == State.Funded, "Annulation impossible a ce stade");
-
-        if (state == State.Funded && msg.sender == tenant) {
-            // Remboursement complet si annulation avant start
-            (bool sent, ) = tenant.call{value: address(this).balance}("");
-            require(sent, "Remboursement echoue");
-            emit Refunded(tenant, address(this).balance);
+        if (_tenantAmount > 0) {
+            (bool sentTenant, ) = booking.tenant.call{value: _tenantAmount}("");
+            require(sentTenant, "Echec tenant");
         }
 
-        state = State.Cancelled;
-        emit Cancelled(msg.sender);
+        if (_ownerAmount > 0) {
+            (bool sentOwner, ) = booking.owner.call{value: _ownerAmount}("");
+            require(sentOwner, "Echec owner");
+        }
+
+        uint256 remaining = booking.amount - _tenantAmount - _ownerAmount;
+        if (remaining > 0) {
+            (bool sentPlatform, ) = platformWallet.call{value: remaining}("");
+            require(sentPlatform, "Echec plateforme");
+        }
     }
 
-    function refundDispute(address _to, uint256 _amount, string memory _reason) external onlyOwner nonReentrant {
-        require(state == State.Active, "Litige possible seulement pendant la location");
-        (bool sent, ) = payable(_to).call{value: _amount}("");
-        require(sent, "Transfert echoue");
-        emit Dispute(msg.sender, _reason);
+    // ========================= CONFIG & VIEWS =========================
+
+    function setDefaultFeePercent(uint256 _newFeePercent) external {
+        require(_newFeePercent <= 100, "Invalide");
+        defaultFeePercent = _newFeePercent;
+        emit FeeUpdated(_newFeePercent);
     }
 
-    function setPlatformFeePercent(uint256 _newFee) external onlyPlatformOwner {
-        require(_newFee <= 100, "Pourcentage invalide");
-        platformFeePercent = _newFee;
-        emit PlatformFeeUpdated(_newFee);
+    function setPlatformWallet(address payable _newWallet) external {
+        require(_newWallet != address(0), "Adresse invalide");
+        platformWallet = _newWallet;
     }
 
-    function getBalance() public view returns (uint256) {
+    function transferAdmin(address _newAdmin) external {
+        require(_newAdmin != address(0), "Adresse invalide");
+        admin = _newAdmin;
+    }
+
+    function getBookingStatus(uint256 _bookingId)
+        external
+        view
+        validBooking(_bookingId)
+        returns (Status)
+    {
+        return bookings[_bookingId].status;
+    }
+
+    function isBookingExist(uint256 _bookingId) external view returns (bool) {
+        return bookings[_bookingId].exists;
+    }
+
+    function getContractBalance() external view returns (uint256) {
         return address(this).balance;
     }
+
+    function emergencyWithdraw() external {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "Pas de fonds");
+
+        (bool sent, ) = platformWallet.call{value: balance}("");
+        require(sent, "Echec retrait");
+    }
+
+    receive() external payable {}
 }
