@@ -15,7 +15,12 @@ The platform enables secure, transparent, and peer-to-peer rental transactions w
 - [Microservices Architecture](#microservices-architecture)
 - [Blockchain & Payment Module](#blockchain--payment-module)
 - [Backend Development](#backend-development)
-- [Team Roles ](#team-roles--responsibilities)
+- [Frontend Development](#frontend-development)
+- [DevOps](#devops)
+- [Cloud Infrastructure](#cloud-infrastructure)
+- [ML & FastAPI](#ml--fastapi)
+- [Team Roles And Responsibilities](#team-roles--responsibilities)
+
 
 ---
 
@@ -78,112 +83,313 @@ The platform is composed of the following microservices:
 
 ## Blockchain & Payment Module
 
-### Role of the Blockchain Module
+## 1. Overview
 
-The blockchain module is responsible for managing **rental payments and lease execution** in a decentralized and trustless manner.
+The Blockchain of this project is responsible for ensuring secure, transparent, and trustless rental transactions using Ethereum smart contracts. It eliminates the need for intermediaries by enforcing rental rules directly on-chain through a custom Escrow Smart Contract.
 
-**It ensures:**
-- Secure handling of rental payments
-- Automatic fee distribution
-- Immutable transaction records
-- Backend ↔ Blockchain interoperability
+The smart contract manages:
+* Rental booking creation
+* Secure escrow of rental payments
+* Automated fund distribution
+* Cancellations and dispute resolution
+* Platform commission handling
 
----
-
-### Smart Contract Overview (Rental Escrow)
-
-The smart contract implements a **rental escrow mechanism** involving three main actors:
-
-#### Contract Participants
-
-- **Owner**: The property owner (landlord) who rents the property
-- **Tenant**: The renter who pays the rental amount
-- **Platform Owner**: The application owner who receives a commission for providing the platform
-
-#### Platform Commission
-
-- The platform takes a **5% commission** on each rental payment
-- This percentage is configurable by the platform owner
-- The commission is automatically deducted and transferred on-chain during payment
+The contract is deployed on the Ethereum Sepolia Testnet and is designed to seamlessly integrate with:
+* A Java Spring Boot backend
+* A React frontend
+* An off-chain PostgreSQL database
 
 ---
 
-### Rental Payment Workflow
+## 2. Smart Contract Architecture
 
-1. The tenant initiates the rental payment
-2. The smart contract:
-   - Calculates platform commission (5%)
-   - Transfers commission to the platform owner
-   - Transfers remaining amount to the property owner
-3. The transaction is recorded immutably on Ethereum
-4. Contract state updates automatically
+### 2.1 Contract Name
+`RentalEscrow`
 
----
+### 2.2 Solidity Version
 
-### Contract States
-
-The smart contract follows a **state-based lifecycle** to guarantee correctness, security, and business logic enforcement.
-
-```
-Created → Funded → Active → Completed
-              ↘ Cancelled
+```solidity
+pragma solidity ^0.8.20;
 ```
 
-#### State Descriptions
-
-1. **Created**
-   - Contract is deployed
-   - Rental parameters are defined
-   - No payment has been made yet
-   - Waiting for tenant funding
-
-2. **Funded**
-   - Tenant has paid the rental amount
-   - Platform commission has been deducted
-   - Owner has received payment
-   - Contract is ready to start the lease
-
-3. **Active**
-   - Lease period has officially started
-   - Rental is considered ongoing
-   - Disputes or refunds may be handled if required
-
-4. **Completed**
-   - Lease period has ended
-   - Contract execution is finalized
-   - No further actions are allowed
-
-5. **Cancelled**
-   - Contract is cancelled before lease execution
-   - Protects participants from invalid or aborted rentals
+### 2.3 Design Principles
+* Security-first (reentrancy protection, strict access control)
+* Backend-driven logic (admin-controlled actions)
+* Database-compatible (uses PostgreSQL booking IDs)
+* Frontend-friendly (clear events and getters)
 
 ---
 
-### Blockchain Payment Microservice
+## 3. Core Concepts
 
-The Payment Service is a Spring Boot microservice that connects the backend ecosystem to the Ethereum blockchain.
+### 3.1 Roles
 
-**It does not process payments itself, but:**
-- Interacts with the deployed smart contract
-- Verifies blockchain state
-- Retrieves balances and contract information
-- Exposes REST APIs for validation and testing
+| Role | Description |
+|------|-------------|
+| Admin | Backend service (Spring Boot), controls sensitive operations |
+| Tenant | User who pays the rent |
+| Owner | Property owner receiving the rent |
+| Platform | Receives commission fees |
 
-#### Backend ↔ Blockchain Communication
+### 3.2 Booking Lifecycle
 
-**Technologies:**
-- Web3j
-- Ethereum Sepolia Testnet
-- Infura RPC
-- Docker
+1. **Booking Creation**
+   * Created by backend
+   * Linked to PostgreSQL booking ID
+   * Status: `AWAITING_PAYMENT`
 
-**Implemented validations:**
-- Ethereum network connectivity
-- Wallet balance retrieval
-- Smart contract state retrieval
-- API health verification
+2. **Payment**
+   * Tenant pays exact rent amount
+   * Funds locked in smart contract
+   * Status: `PAID`
 
-Successful responses confirm that blockchain integration is fully functional.
+3. **Completion**
+   * Backend releases funds
+   * Owner receives rent
+   * Platform receives commission
+   * Status: `COMPLETED`
+
+4. **Cancellation / Dispute (Optional)**
+   * Full or partial refunds handled on-chain
+   * Status: `CANCELLED` or `DISPUTED`
+
+### 3.3 Booking Status Enum
+
+```solidity
+enum Status {
+    AWAITING_PAYMENT,
+    PAID,
+    COMPLETED,
+    CANCELLED,
+    DISPUTED
+}
+```
+
+---
+
+## 4. Main Smart Contract Features
+
+### 4.1 Booking Creation (Backend Only)
+
+```solidity
+function createBooking(...)
+```
+
+* Uses PostgreSQL booking ID
+* Automatically calculates platform fees
+* Ensures data consistency between backend and blockchain
+
+### 4.2 Secure Rent Payment (Tenant)
+
+```solidity
+function payRent(uint256 bookingId) payable
+```
+
+* Exact amount required
+* Funds stored in escrow
+* Protected against reentrancy
+
+### 4.3 Funds Release (Backend Only)
+
+```solidity
+function releaseFunds(uint256 bookingId)
+```
+
+* Automatically splits funds
+* Transfers:
+   * Rent → Owner
+   * Commission → Platform
+
+### 4.4 Cancellation & Refunds
+
+```solidity
+function cancelBooking(uint256 bookingId)
+```
+
+* Full refund to tenant
+* Only if payment already made
+
+### 4.5 Dispute Management
+
+```solidity
+function markAsDisputed(...)
+function resolveDispute(...)
+```
+
+* Partial refunds supported
+* Remaining funds go to platform
+* Fully transparent on-chain resolution
+
+---
+
+## 5. Security Measures
+
+### 5.1 Reentrancy Protection
+* Custom `locked` mechanism per booking
+
+### 5.2 Strict Validation
+* Booking existence checks
+* Status verification
+* Amount consistency checks
+
+### 5.3 Emergency Withdraw
+* Allows admin to recover stuck funds if needed
+
+---
+
+## 6. Events for Off-Chain Synchronization
+
+The contract emits events to synchronize blockchain activity with backend services:
+
+* `BookingCreated`
+* `PaymentReceived`
+* `FundsReleased`
+* `Cancelled`
+* `Disputed`
+* `FeeUpdated`
+
+These events are consumed by backend services to:
+* Update database state
+* Trigger notifications
+* Maintain consistency across systems
+
+---
+
+## 7. Deployment Details
+
+### 7.1 Network Configuration
+* **Network**: Sepolia Testnet
+* **Deployment Tool**: Hardhat
+* **Wallet**: Ethers.js
+
+### 7.2 Configuration Output
+* Contract address
+* ABI
+* Network metadata
+* Frontend-ready JSON config
+
+### 7.3 Deployment Artifacts
+
+Deployment scripts automatically generate:
+* `deployment-<network>.json`
+* `contract-config-frontend.json`
+
+---
+
+## 8. Frontend & Backend Integration
+
+### 8.1 Integration Architecture
+* Backend acts as admin
+* Frontend interacts only with:
+   * `payRent`
+   * read-only getters
+* PostgreSQL booking ID is the single source of truth
+
+### 8.2 Benefits of Hybrid Architecture
+This hybrid architecture ensures:
+* Blockchain security
+* Backend scalability
+* Frontend simplicity
+
+---
+
+## 9. Rental Escrow Workflow
+
+### 9.1 Initial Booking Creation
+```
+Backend → Smart Contract
+1. User creates booking request in frontend
+2. Backend validates booking details
+3. Backend calls createBooking() with PostgreSQL booking ID
+4. Smart contract creates escrow record
+5. BookingCreated event emitted
+6. Backend updates database status to AWAITING_PAYMENT
+```
+
+### 9.2 Payment Process
+```
+Tenant → Smart Contract → Backend
+1. Tenant initiates payment from frontend
+2. Frontend calls payRent(bookingId) with exact rent amount
+3. Smart contract validates amount and booking status
+4. Funds locked in escrow
+5. PaymentReceived event emitted
+6. Backend listener catches event and updates database to PAID
+7. Frontend displays payment confirmation
+```
+
+### 9.3 Rental Period & Completion
+```
+Backend → Smart Contract → Owner/Platform
+1. Backend monitors rental end date
+2. Upon completion, backend calls releaseFunds(bookingId)
+3. Smart contract calculates split:
+   - Rent amount → Owner wallet
+   - Commission → Platform wallet
+4. Transfers executed atomically
+5. FundsReleased event emitted
+6. Backend updates database to COMPLETED
+7. Both parties receive notifications
+```
+
+### 9.4 Cancellation Flow
+```
+Backend → Smart Contract → Tenant
+1. Cancellation request initiated (by tenant or system)
+2. Backend validates cancellation eligibility
+3. Backend calls cancelBooking(bookingId)
+4. Smart contract:
+   - Verifies booking is PAID
+   - Refunds full amount to tenant
+   - Updates status to CANCELLED
+5. Cancelled event emitted
+6. Backend updates database and notifies parties
+```
+
+### 9.5 Dispute Resolution Flow
+```
+Admin → Smart Contract → Parties
+1. Dispute raised by tenant or owner
+2. Backend calls markAsDisputed(bookingId)
+3. Status changed to DISPUTED (funds remain locked)
+4. Admin investigation conducted
+5. Admin calls resolveDispute(bookingId, tenantRefund, ownerPayment)
+6. Smart contract distributes:
+   - Partial refund → Tenant
+   - Partial payment → Owner
+   - Remainder → Platform
+7. Disputed event emitted with resolution details
+8. Backend updates database and closes dispute
+```
+
+### 9.6 Emergency Recovery
+```
+Admin Only
+1. Stuck funds or technical issue detected
+2. Admin calls emergencyWithdraw(bookingId)
+3. Funds transferred to admin wallet
+4. Manual resolution and redistribution handled off-chain
+5. Incident logged for audit
+```
+
+### 9.7 Workflow State Diagram
+```
+[AWAITING_PAYMENT] 
+    ↓ (payRent)
+[PAID] 
+    ↓ (releaseFunds)
+[COMPLETED]
+
+[PAID]
+    ↓ (cancelBooking)
+[CANCELLED]
+
+[PAID]
+    ↓ (markAsDisputed)
+[DISPUTED]
+    ↓ (resolveDispute)
+[COMPLETED]
+```
 
 ---
 
@@ -287,17 +493,17 @@ graph TB
 
 | Component | Port | Responsibilities |
 |-----------|------|-----------------|
-| **Spring Cloud Gateway** | 8080 | Single entry point<br/>JWT authentication<br/>Role-based authorization<br/>Intelligent routing<br/>`X-User-Id` header injection |
-| **Auth Service** | 8081 | User management (CRUD)<br/>Authentication (Login/OTP)<br/>Role management (ADMIN, USER)<br/>Type management (HOST, CLIENT)<br/>Wallet connection/disconnection<br/>RabbitMQ event publishing |
-| **Listing Service** | 8082 | Property CRUD<br/>Owner management<br/>Approval workflow (DRAFT → PENDING → APPROVED)<br/>S3 image upload<br/>Feature management |
+| **Spring Cloud Gateway** | 8082 | Single entry point<br/>JWT authentication<br/>Role-based authorization<br/>Intelligent routing<br/>`X-User-Id` header injection |
+| **Auth Service** | 8080 | User management (CRUD)<br/>Authentication (Login/OTP)<br/>Role management (ADMIN, USER)<br/>Type management (HOST, CLIENT)<br/>Wallet connection/disconnection<br/>RabbitMQ event publishing |
+| **Listing Service** | 8081 | Property CRUD<br/>Owner management<br/>Approval workflow (DRAFT → PENDING → APPROVED)<br/>S3 image upload<br/>Feature management |
 | **Booking Service** | 8083 | Reservation creation<br/>Availability check<br/>State machine (PENDING → AWAITING_PAYMENT → CONFIRMED)<br/>Price and wallet snapshot<br/>Automatic expiration (15 min) |
 | **Payment Service** | 8084 | Blockchain transaction validation<br/>Smart contract interaction<br/>On-chain event verification<br/>Payment history<br/>Confirmation event publishing |
 
 ---
 
-## 3. Data Modeling (Global ERD)
+## 3. Data Modeling
 
-### 3.1 Complete ERD Diagram
+### 3.1 Complete Class Diagram
 
 ```mermaid
 erDiagram
@@ -1390,18 +1596,359 @@ resilience4j:
 - **HALF_OPEN:** Testing if service recovered
 
 ---
+## Frontend development
 
-## Team Roles & Responsibilities
+## Key Features
 
-| Role | Name | Responsibilities |
-|------|------|------------------|
-| **Backend Engineer** | MEHDI LAGHRISSI | Microservices development, REST APIs, database design |
-| **Blockchain & Smart Contract Engineer** | DOUAA BAHADDOU | Smart contract development, Web3j integration |
-| **Frontend Engineer** | IBRAHIM ZAYROUH | React application, UI/UX, MetaMask integration |
-| **Cloud & AI Engineer** | ERRAOUDI ABDESSAMAD | AWS infrastructure, AI/ML models, price prediction |
-| **DevOps Engineer** | LAFDIL NOHAYLA | Docker, Kubernetes, CI/CD pipelines, monitoring |
+### For Property Owners
+- **Property Listing Management** - Intuitive multi-step property listing with detailed information, pricing, images, and amenities
+- **Portfolio Dashboard** - Comprehensive tracking of all owned properties, rental status, and tenant information
+- **Automated Rent Collection** - Receive cryptocurrency payments with smart contract automation and escrow
+- **Tenant Management** - Monitor lease agreements, payment schedules, and tenant details in real-time
+- **Analytics & Statistics** - Track property performance, occupancy rates, and revenue metrics
+
+### For Renters
+- **Advanced Property Search** - Powerful filtering by location, price range, property type, and available amenities
+- **Detailed Property Views** - Comprehensive property information with interactive image galleries
+- **Secure Payments** - Pay rent using cryptocurrencies (ETH) with automated escrow protection
+- **Rental Dashboard** - Manage active rentals, view payment schedules, and communicate with landlords
+- **Favorite Properties** - Save and track properties of interest
+
+### Platform Features
+- **Blockchain Security** - Smart contract-based rental agreements stored on immutable ledger
+- **Cryptocurrency Payments** - Native support for ETH and potential for other cryptocurrencies
+- **Smart Escrow** - Automated deposit management with secure fund holding and release
+- **User Authentication** - Secure sign-up, sign-in, and OTP verification system
+- **User Profiles** - Comprehensive profile management with activity tracking and wallet integration
+- **Wallet Integration** - Seamless Web3 wallet connection for blockchain transactions
+- **Settings Management** - Customizable user preferences and account settings
+- **Real-time Statistics** - Platform-wide and personal analytics dashboards
+
+## Technology Stack
+
+### Frontend
+- **React 18** - Modern React with hooks and functional components
+- **TypeScript** - Type-safe development with enhanced IDE support
+- **React Router v6** - Client-side routing and navigation
+- **Tailwind CSS** - Utility-first CSS framework for responsive design
+- **shadcn/ui** - High-quality, accessible component library
+- **Lucide React** - Beautiful, consistent icon set
+- **Sonner** - Toast notifications for user feedback
+
+### State Management
+- **Zustand** - Lightweight state management for authentication
+- **React Context API** - Wallet connection and global state management
+
+### Web3 Integration
+- **Web3 Wallet Support** - MetaMask and other wallet providers
+- **Smart Contract Integration** - Ethereum-based rental agreements
+- **Cryptocurrency Payments** - ETH payment processing
+
+### Backend Integration
+- **RESTful API** - Communication with backend services
+- **JWT Authentication** - Secure token-based authentication
+- **OTP Verification** - Two-factor authentication via email/SMS
+
+## Project Structure
+
+### Pages & Routes
+
+#### Authentication Pages
+- **Landing Page (/)** - Marketing homepage showcasing platform features, benefits, and statistics
+- **Sign Up (/signup)** - User registration with email, password, and profile information
+- **Sign In (/signin)** - User authentication with credentials
+- **Verify OTP (/verify-otp)** - Two-factor authentication verification page
+
+#### Main Application Pages
+- **Browse Properties (/browse)** - Search, filter, and explore available rental properties
+- **Property Details (/property/:id)** - Detailed view of individual properties with booking interface
+- **Add Property (/add-property)** - Multi-step wizard for listing new properties
+- **My Properties (/my-properties)** - Dashboard for managing owned and rented properties
+- **Profile (/profile)** - User profile management, wallet info, and account settings
+- **Settings (/settings)** - Account preferences, notifications, and privacy settings
+- **Statistics (/statistics)** - Analytics dashboard with platform and personal metrics
+
+
+
+## DevOps
+
+### 1. Code Management and Git Branches
+
+The repository used to contain two protected branches:
+
+**dev**: development branch used for integrating new features.
+
+**main**: production branch representing stable and final code. 
+
+Developers work on their own feature branches and submit their changes through Pull Requests (PRs).
+PRs are then reviewed and approved before being merged into dev or main, in order to protect the integrity of critical branches.
+
+### 2. Continuous Integration (CI) with Jenkins
+
+An automated Jenkins CI/CD pipeline is set up to manage continuous integration and continuous deployment of the different microservices to the Kubernetes cluster.
+
+Each push to the protected branches (dev, main) automatically triggers the Jenkins pipeline. This automation is achieved through GitHub webhook → Jenkins(or via SCM polling in local environment).
+
+Pipeline visualization is done using Jenkins Blue Ocean:
+
+![Jenkins Blue Ocean Pipeline](images/pipeline.png)
+
+#### Pipeline stages:
+
+**Checkout**: retrieving the code from the branches.
+
+**Build Backend**: compiling microservices using Maven.
+
+**Build Frontend**: building the frontend using npm run build.
+
+**Compile Smart Contracts**: compiling Ethereum smart contracts using Hardhat.
+
+**Build AI Service**: building the Docker image for the AI service.
+
+**Docker Build**: building Docker images for all services using Docker Compose.
+
+**Docker Push**: pushing images to Docker Hub for distribution.
+
+### 3. Continuous Deployment (CD) on Kubernetes
+
+- All services are packaged as Docker images and pushed to Docker Hub:
+```bash
+- `abde142/auth-service:latest`  
+- `abde142/listing-service:latest`  
+- `abde142/booking-service:latest`  
+- `abde142/payment-service:latest`  
+- `abde142/api-gateway:latest`  
+- `abde142/frontend:latest`  
+- `abde142/blockchain:latest`
+- `abde142/ai:latest`
+```
+- Kubernetes manifests are stored in the k8s/ directory.
+- All microservices are deployed in a dedicated namespace (rental-app) to isolate the application from other workloads in the cluster.
+- Kubernetes **Deployment** and **Service** YAML files define how each microservice runs, scales, and exposes its ports.
+- The **Continuous Deployment (CD) stage** automatically updates the Deployment manifests to reference the new Docker image tags (`${BUILD_NUMBER}`) before applying them. Using:
+```bash
+kubectl apply -f k8s/
+```
+- Each microservice is deployed on the Kubernetes cluster with the required configurations (ports, secrets, etc.).
+- Local testing is performed using Minikube to verify that: all pods start correctly, services communicate with each other, configurations (secrets, volumes, ports) are correctly applied.
+
+### 4. Secrets and Environment Variables Management
+
+Sensitive keys (RPC_URL, PRIVATE_KEY, PRIVATE_KEY_TENANT, etc.) are managed using Jenkins Credentials.
+
+![Jenkins Credentials](images/jenkinscredentials.png)
+
+
+Local **.env** files can be used to test Docker Compose before deployment.
+
+
+## Cloud Infrastructure
+
+### 1. Infrastructure Components
+
+**Databases:** 3x PostgreSQL + 1x MySQL (persistent volumes)  
+**Message Queue:** RabbitMQ (event-driven communication)  
+**Monitoring:** Jaeger (distributed tracing)  
+**Storage:** AWS S3 (property images)  
+
+
+### 2. Deployment Architecture
+
+**Internet → AWS Load Balancer → EKS Cluster**  
+
+                            ↓
+            ┌───────────────┼───────────────┐
+            ↓               ↓               ↓
+        Frontend     API Gateway    Microservices
+        (2 pods)      (2 pods)      (2 pods each)
+                            ↓
+            ┌───────────────┼───────────────┐
+            ↓               ↓               ↓
+      PostgreSQL        RabbitMQ       Blockchain
+      + MySQL          (messaging)     (smart contracts)
+
+
+
+
+### 3. Key Features Implemented
+
+#### **High Availability**
+- Multi-replica deployments (2-5 pods per service)  
+- Horizontal Pod Autoscaling (CPU/Memory-based)  
+- Health checks (Liveness & Readiness probes)  
+- Load balancing (AWS ELB + Kubernetes Services)  
+
+#### **Scalability**
+- Auto-scaling configured for all microservices  
+- Stateless architecture for easy horizontal scaling  
+- Distributed tracing with Jaeger for performance monitoring  
+
+#### **Security**
+- Secrets management (Kubernetes Secrets for sensitive data)  
+- Network isolation (ClusterIP for internal services)  
+- JWT authentication (secure token-based auth)  
+- CORS configuration (secure cross-origin requests)  
+
+#### **Persistence**
+- Persistent volumes for all databases (AWS EBS)  
+- Data replication (RabbitMQ persistent queues)  
+- S3 integration for file storage  
+
+
+
+### 4. Deployment Process
+
+#### 4.1. Container Images
+
+From DockerHub:
+
+```bash
+- `abde142/auth-service:latest`  
+- `abde142/listing-service:latest`  
+- `abde142/booking-service:latest`  
+- `abde142/payment-service:latest`  
+- `abde142/api-gateway:latest`  
+- `abde142/frontend:latest`  
+- `abde142/blockchain:latest`
+- `abde142/ai:latest`
+```
+
+#### 4.2. AWS EKS Cluster Setup
+```bash
+eksctl create cluster \
+  --name rental-app-cluster \
+  --region eu-west-3 \
+  --nodegroup-name standard-workers \
+  --node-type t3.medium \
+  --nodes 3 \
+  --nodes-min 2 \
+  --nodes-max 5
+```
+#### 4.3. Kubernetes Resources Deployed
+
+- **1 Namespace:** rental-app  
+- **13 Deployments:** services + databases  
+- **13 Services:** ClusterIP + 2 LoadBalancers  
+- **5 PersistentVolumeClaims:** databases  
+- **6 HorizontalPodAutoscalers:** auto-scaling  
+- **1 Ingress:** routing  
+- **2 ConfigMaps:** configuration  
+- **1 Secret:** sensitive data  
+
+
+#### 4.4. External Access
+
+- **Frontend:** AWS Load Balancer (HTTP)  
+- **API Gateway:** AWS Load Balancer (HTTP:8082)  
+- **Internal Services:** ClusterIP (not exposed)  
+
+
+
+### Challenges Solved
+
+#### 1. Storage Provisioning
+- **Issue:** PersistentVolumeClaims pending  
+- **Solution:** Configured EBS CSI driver and default StorageClass  
+
+#### 2. CORS Configuration
+- **Issue:** Browser blocking cross-origin requests  
+- **Solution:** Implemented CorsWebFilter in API Gateway  
+
+#### 3. Service Discovery
+- **Issue:** Microservices unable to communicate  
+- **Solution:** Configured Kubernetes DNS and ClusterIP services  
+
+#### 4. Database Initialization
+- **Issue:** Services starting before databases ready  
+- **Solution:** Implemented readiness probes and init delays  
+
+
+
+### Live URLs
+
+- **Frontend:**  
+[http://aa246fc51bf7244c5b132e933e81cb0f-1780957586.eu-west-3.elb.amazonaws.com](http://aa246fc51bf7244c5b132e933e81cb0f-1780957586.eu-west-3.elb.amazonaws.com)  
+
+- **API Gateway:**  
+[http://a3776033972a440509d6fdc28ebfaab8-1140353958.eu-west-3.elb.amazonaws.com:8082](http://a3776033972a440509d6fdc28ebfaab8-1140353958.eu-west-3.elb.amazonaws.com:8082)  
 
 ---
+
+### Project Outcomes
+
+- Successfully deployed a **production-ready microservices application** on AWS  
+- Achieved **high availability** with multi-AZ deployment  
+- Implemented **auto-scaling** for cost optimization  
+- Established **monitoring and observability practices**  
+- Created **comprehensive documentation** for team knowledge sharing
+
+## ML & FastAPI
+
+### Price Suggestion Engine 
+
+**Objectif :** Optimiser le rendement des propriétaires (Yield) de 8% à 15% grâce à une suggestion de prix intelligente basée sur le Machine Learning.
+
+### Présentation 
+
+Cette partie propose une solution "End-to-End" pour prédire le prix optimal d'une location saisonnière. En utilisant un algorithme de Gradient Boosting, le modèle analyse les caractéristiques du bien (capacité, emplacement, type) pour fournir un prix de marché et une fourchette d'optimisation.
+
+### Fonctionnalités
+
+* Modèle Prédictif : Utilisation de `GradientBoostingRegressor` pour capturer les relations non-linéaires.
+* Pipeline de Données Automatisé :
+  * Gestion des valeurs manquantes (Imputation par médiane/constante).
+  * Encodage des variables catégorielles (Pays, Ville, Type).
+  * Normalisation des caractéristiques numériques.
+* API Haute Performance : Interface développée avec FastAPI, documentée automatiquement avec Swagger.
+* Logique Business : Calcul automatique des tarifs optimisés pour augmenter le rendement annuel.
+
+### Stack Technique
+
+* Langage : Python 3.9+
+* Machine Learning : Scikit-Learn (Pipeline, Imputer, GB Regressor)
+* API : FastAPI + Uvicorn
+* Données : Pandas & Numpy
+* Validation : Pydantic
+
+###  Property Recommendation Engine
+
+Système de recommandation immobilière basé sur l'apprentissage non-supervisé
+
+**1. Vision Générale**
+
+L'objectif est d'offrir une expérience personnalisée aux locataires en automatisant la découverte de biens. Au lieu de laisser l'utilisateur filtrer manuellement des milliers d'annonces, le moteur analyse son historique de réservations pour lui proposer des propriétés similaires répondant à ses besoins implicites.
+
+**2. Architecture Technique**
+
+Le projet repose sur une pile technologique moderne et performante :
+
+* Backend : FastAPI (Python) – pour une API asynchrone ultra-rapide.
+* Machine Learning : Scikit-Learn – utilisation de l'algorithme K-Means.
+* Data Processing : Pandas & NumPy – pour la manipulation et la génération de données.
+* Persistence : Joblib – pour la sauvegarde du modèle entraîné.
+
+**3. Le Cœur du Projet : L'Algorithme**
+
+Le projet utilise une approche de Clustering (Regroupement) :
+
+1. Prétraitement (Pipeline) : Les données textuelles (villes, types) sont transformées via One-Hot Encoding et les données numériques sont normalisées avec StandardScaler.
+2. Segmentation : L'algorithme K-Means segmente le marché en 8 clusters distincts. Chaque cluster regroupe des propriétés ayant des caractéristiques mathématiquement proches.
+3. Profilage Utilisateur : À partir d'un historique JSON, le système calcule le "centroïde" (le profil moyen) des habitudes de l'utilisateur.
+4. Matching : L'utilisateur est assigné à un cluster, et le système extrait les meilleures propriétés de ce groupe.
+
+**4. Fonctionnalités Clés**
+
+* Génération de Données : Simulation d'un dataset réaliste de 2000 propriétés (appartements, châteaux, hôtels).
+* Entraînement Automatisé : Le modèle s'entraîne et se sauvegarde automatiquement au premier lancement.
+* API REST : Un endpoint `/recommend` qui accepte un historique complexe et renvoie des suggestions en millisecondes.
+* Visualisation : Capacité de réduire les dimensions (PCA) pour visualiser la segmentation du marché en 2D.
+
+**5. Perspectives d'Évolution**
+
+* Feedback Loop : Intégrer les "likes" et "dislikes" de l'utilisateur pour affiner les clusters en temps réel.
+* Localisation Avancée : Utiliser les coordonnées GPS pour calculer des distances réelles.
+* Deep Learning : Passer à des systèmes d'embeddings plus complexes si le volume de données augmente significativement.
+
 
 ## Getting Started
 
@@ -1448,6 +1995,18 @@ cd blockchain
 npx hardhat compile
 npx hardhat run scripts/deploy.js --network sepolia
 ```
+
+---
+
+## Team Roles & Responsibilities
+
+| Role | Name | Responsibilities |
+|------|------|------------------|
+| **Backend Engineer** | MEHDI LAGHRISSI | Microservices development, REST APIs, database design |
+| **Blockchain & Smart Contract Engineer** | DOUAA BAHADDOU | Smart contract development, Web3j integration |
+| **Frontend Engineer** | IBRAHIM ZAYROUH | React application, UI/UX, MetaMask integration |
+| **Cloud & AI Engineer** | ERRAOUDI ABDESSAMAD | AWS infrastructure, AI/ML models, price prediction |
+| **DevOps Engineer** | LAFDIL NOHAYLA | Docker, Kubernetes, CI/CD pipelines, monitoring |
 
 ---
 
