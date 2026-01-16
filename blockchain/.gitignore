@@ -1,0 +1,23 @@
+# 🧱 Fichiers Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 🔐 Variables d'environnement
+.env
+
+# ⚙️ Fichiers générés par Hardhat
+artifacts/
+cache/
+typechain/
+coverage/
+coverage.json
+
+# 🧪 Fichiers temporaires ou IDE
+.DS_Store
+.vscode/
+.idea/
+
+
+# Hardhat Ignition default folder for deployments against a local node
+ignition/deployments/chain-31337

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RentalEscrow Test Page</title>
+    <script src="https://cdn.ethers.org/lib/ethers-5.2.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        button { margin: 5px; padding: 10px; }
+        input { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>RentalEscrow Contract Test</h1>
+    
+    <div class="section">
+        <h2>Connect Wallet</h2>
+        <button id="connectWallet">Connect MetaMask</button>
+        <p id="account">Not connected</p>
+        <p id="network">Network: </p>
+    </div>
+    
+    <div class="section">
+        <h2>Contract Address</h2>
+        <input type="text" id="contractAddress" placeholder="Enter contract address" size="50">
+        <button id="loadContract">Load Contract</button>
+    </div>
+    
+    <div class="section" id="contractInfo" style="display: none;">
+        <h2>Contract Info</h2>
+        <p>State: <span id="state"></span></p>
+        <p>Owner: <span id="owner"></span></p>
+        <p>Tenant: <span id="tenant"></span></p>
+        <p>Platform Owner: <span id="platformOwner"></span></p>
+        <p>Rent Amount: <span id="rentAmount"></span> ETH</p>
+        <p>Lease Start: <span id="leaseStart"></span></p>
+        <p>Lease End: <span id="leaseEnd"></span></p>
+        <p>Platform Fee: <span id="platformFee"></span>%</p>
+        <p>Balance: <span id="balance"></span> ETH</p>
+    </div>
+    
+    <div class="section">
+        <h2>Actions</h2>
+        <button id="fund">Fund (Tenant)</button>
+        <input type="text" id="fundAmount" placeholder="Amount in ETH (rent + fee)" size="20">
+        <br>
+        <button id="startLease">Start Lease (Owner)</button>
+        <br>
+        <button id="complete">Complete (Owner)</button>
+        <br>
+        <button id="cancel">Cancel</button>
+        <br>
+        <button id="setFee">Set Platform Fee (Platform Owner)</button>
+        <input type="number" id="newFee" placeholder="New fee %" min="0" max="100">
+        <br>
+        <button id="refundDispute">Refund Dispute (Owner)</button>
+        <input type="text" id="disputeTo" placeholder="To address" size="50">
+        <input type="text" id="disputeAmount" placeholder="Amount in ETH" size="20">
+        <input type="text" id="disputeReason" placeholder="Reason" size="30">
+    </div>
+    
+    <div class="section">
+        <h2>Events</h2>
+        <div id="events"></div>
+    </div>
+    
+    <script>
+        const abi = [
+            {
+                "inputs": [
+                    {"internalType": "address payable", "name": "_owner", "type": "address"},
+                    {"internalType": "address payable", "name": "_tenant", "type": "address"},
+                    {"internalType": "address payable", "name": "_platformOwner", "type": "address"},
+                    {"internalType": "uint256", "name": "_rentAmount", "type": "uint256"},
+                    {"internalType": "uint256", "name": "_leaseStart", "type": "uint256"},
+                    {"internalType": "uint256", "name": "_leaseEnd", "type": "uint256"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "by", "type": "address"}], "name": "Cancelled", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "owner", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "ownerAmount", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "platformAmount", "type": "uint256"}], "name": "Completed", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "initiator", "type": "address"}, {"indexed": false, "internalType": "string", "name": "reason", "type": "string"}], "name": "Dispute", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "tenant", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "totalAmount", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "platformFee", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "ownerAmount", "type": "uint256"}], "name": "Funded", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "startDate", "type": "uint256"}], "name": "LeaseStarted", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "tenant", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "penaltyAmount", "type": "uint256"}], "name": "Penalized", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "newFee", "type": "uint256"}], "name": "PlatformFeeUpdated", "type": "event"},
+            {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "tenant", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "Refunded", "type": "event"},
+            {"inputs": [], "name": "cancel", "outputs": [], "stateMutability": "nonpayable", "type": "function"},
+            {"inputs": [], "name": "complete", "outputs": [], "stateMutability": "nonpayable", "type": "function"},
+            {"inputs": [], "name": "fund", "outputs": [], "stateMutability": "payable", "type": "function"},
+            {"inputs": [], "name": "getBalance", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "leaseEnd", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "leaseStart", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "owner", "outputs": [{"internalType": "address payable", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "platformFeePercent", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "platformOwner", "outputs": [{"internalType": "address payable", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [{"internalType": "address", "name": "_to", "type": "address"}, {"internalType": "uint256", "name": "_amount", "type": "uint256"}, {"internalType": "string", "name": "_reason", "type": "string"}], "name": "refundDispute", "outputs": [], "stateMutability": "nonpayable", "type": "function"},
+            {"inputs": [], "name": "rentAmount", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [{"internalType": "uint256", "name": "_newFee", "type": "uint256"}], "name": "setPlatformFeePercent", "outputs": [], "stateMutability": "nonpayable", "type": "function"},
+            {"inputs": [], "name": "startLease", "outputs": [], "stateMutability": "nonpayable", "type": "function"},
+            {"inputs": [], "name": "state", "outputs": [{"internalType": "uint8", "name": "", "type": "uint8"}], "stateMutability": "view", "type": "function"},
+            {"inputs": [], "name": "tenant", "outputs": [{"internalType": "address payable", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"}
+        ];
+
+        let provider, signer, contract;
+
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                const address = await signer.getAddress();
+                document.getElementById('account').textContent = `Connected: ${address}`;
+                const network = await provider.getNetwork();
+                document.getElementById('network').textContent = `Network: ${network.name} (${network.chainId})`;
+            } else {
+                alert('MetaMask not detected');
+            }
+        });
+
+        document.getElementById('loadContract').addEventListener('click', () => {
+            const address = document.getElementById('contractAddress').value;
+            if (address && provider) {
+                contract = new ethers.Contract(address, abi, signer);
+                loadContractInfo();
+                document.getElementById('contractInfo').style.display = 'block';
+                listenToEvents();
+            } else {
+                alert('Enter contract address and connect wallet');
+            }
+        });
+
+        async function loadContractInfo() {
+            try {
+                const state = await contract.state();
+                const stateNames = ['Created', 'Funded', 'Active', 'Completed', 'Cancelled'];
+                document.getElementById('state').textContent = stateNames[state];
+                document.getElementById('owner').textContent = await contract.owner();
+                document.getElementById('tenant').textContent = await contract.tenant();
+                document.getElementById('platformOwner').textContent = await contract.platformOwner();
+                document.getElementById('rentAmount').textContent = ethers.utils.formatEther(await contract.rentAmount());
+                document.getElementById('leaseStart').textContent = new Date((await contract.leaseStart()) * 1000).toLocaleString();
+                document.getElementById('leaseEnd').textContent = new Date((await contract.leaseEnd()) * 1000).toLocaleString();
+                document.getElementById('platformFee').textContent = await contract.platformFeePercent();
+                document.getElementById('balance').textContent = ethers.utils.formatEther(await contract.getBalance());
+            } catch (error) {
+                console.error(error);
+                alert('Error loading contract info');
+            }
+        }
+
+        document.getElementById('fund').addEventListener('click', async () => {
+            const amount = document.getElementById('fundAmount').value;
+            if (amount && contract) {
+                try {
+                    const tx = await contract.fund({ value: ethers.utils.parseEther(amount) });
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Fund failed');
+                }
+            }
+        });
+
+        document.getElementById('startLease').addEventListener('click', async () => {
+            if (contract) {
+                try {
+                    const tx = await contract.startLease();
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Start lease failed');
+                }
+            }
+        });
+
+        document.getElementById('complete').addEventListener('click', async () => {
+            if (contract) {
+                try {
+                    const tx = await contract.complete();
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Complete failed');
+                }
+            }
+        });
+
+        document.getElementById('cancel').addEventListener('click', async () => {
+            if (contract) {
+                try {
+                    const tx = await contract.cancel();
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Cancel failed');
+                }
+            }
+        });
+
+        document.getElementById('setFee').addEventListener('click', async () => {
+            const fee = document.getElementById('newFee').value;
+            if (fee && contract) {
+                try {
+                    const tx = await contract.setPlatformFeePercent(fee);
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Set fee failed');
+                }
+            }
+        });
+
+        document.getElementById('refundDispute').addEventListener('click', async () => {
+            const to = document.getElementById('disputeTo').value;
+            const amount = document.getElementById('disputeAmount').value;
+            const reason = document.getElementById('disputeReason').value;
+            if (to && amount && reason && contract) {
+                try {
+                    const tx = await contract.refundDispute(to, ethers.utils.parseEther(amount), reason);
+                    await tx.wait();
+                    loadContractInfo();
+                } catch (error) {
+                    console.error(error);
+                    alert('Refund dispute failed');
+                }
+            }
+        });
+
+        function listenToEvents() {
+            contract.on('Funded', (tenant, total, fee, ownerAmt) => {
+                addEvent(`Funded: Tenant ${tenant}, Total ${ethers.utils.formatEther(total)} ETH, Fee ${ethers.utils.formatEther(fee)} ETH`);
+            });
+            contract.on('LeaseStarted', (start) => {
+                addEvent(`Lease Started at ${new Date(start * 1000).toLocaleString()}`);
+            });
+            contract.on('Completed', (owner, ownerAmt, platAmt) => {
+                addEvent(`Completed: Owner ${owner}, Owner Amount ${ethers.utils.formatEther(ownerAmt)} ETH, Platform ${ethers.utils.formatEther(platAmt)} ETH`);
+            });
+            contract.on('Cancelled', (by) => {
+                addEvent(`Cancelled by ${by}`);
+            });
+            contract.on('Refunded', (tenant, amt) => {
+                addEvent(`Refunded: Tenant ${tenant}, Amount ${ethers.utils.formatEther(amt)} ETH`);
+            });
+            contract.on('Dispute', (initiator, reason) => {
+                addEvent(`Dispute: Initiator ${initiator}, Reason ${reason}`);
+            });
+            contract.on('PlatformFeeUpdated', (fee) => {
+                addEvent(`Platform Fee Updated to ${fee}%`);
+            });
+        }
+
+        function addEvent(text) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleString() + ': ' + text;
+            document.getElementById('events').appendChild(div);
+        }
+    </script>
+</body>
+</html>
