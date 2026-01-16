@@ -2004,6 +2004,13 @@ npx hardhat run scripts/deploy.js --network sepolia
 | **Cloud & AI Engineer** | ERRAOUDI ABDESSAMAD | AWS infrastructure, AI/ML models, price prediction |
 | **DevOps Engineer** | LAFDIL NOHAYLA | Docker, Kubernetes, CI/CD pipelines, monitoring |
 
+## Présentation
+
+Voici la vidéo présentative :  
+🔗 [https://ton-lien-ici.com](https://youtu.be/wOxkGi9u7As)
+
+
 ---
+
 
 
