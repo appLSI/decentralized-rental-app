@@ -9,7 +9,7 @@ The platform enables secure, transparent, and peer-to-peer rental transactions w
 ---
 
 ## Table of Contents
-
+- [Video demonstrative](#video-demonstrative)
 - [Project Objectives](#project-objectives)
 - [Technologies Used](#technologies-used)
 - [Microservices Architecture](#microservices-architecture)
@@ -23,6 +23,10 @@ The platform enables secure, transparent, and peer-to-peer rental transactions w
 
 
 ---
+## Video Demonstrative
+
+Voici la vidéo présentative :  
+🔗 [lien](https://youtu.be/wOxkGi9u7As)
 
 ## Project Objectives
 
@@ -2004,13 +2008,11 @@ npx hardhat run scripts/deploy.js --network sepolia
 | **Cloud & AI Engineer** | ERRAOUDI ABDESSAMAD | AWS infrastructure, AI/ML models, price prediction |
 | **DevOps Engineer** | LAFDIL NOHAYLA | Docker, Kubernetes, CI/CD pipelines, monitoring |
 
-## Présentation
 
-Voici la vidéo présentative :  
-🔗 [lien](https://youtu.be/wOxkGi9u7As)
 
 
 ---
+
 
 
 
