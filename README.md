@@ -1674,11 +1674,7 @@ resilience4j:
 
 ### 1. Code Management and Git Branches
 
-The repository used to contain two protected branches:
-
-**dev**: development branch used for integrating new features.
-
-**main**: production branch representing stable and final code. 
+The repository used to contain protected branches:
 
 Developers work on their own feature branches and submit their changes through Pull Requests (PRs).
 PRs are then reviewed and approved before being merged into dev or main, in order to protect the integrity of critical branches.
@@ -2009,4 +2005,5 @@ npx hardhat run scripts/deploy.js --network sepolia
 | **DevOps Engineer** | LAFDIL NOHAYLA | Docker, Kubernetes, CI/CD pipelines, monitoring |
 
 ---
+
 
