@@ -59,9 +59,9 @@ Voici la vidéo présentative :
 
 ### DevOps & Cloud
 - **Docker** & Docker Compose
-- **Kubernetes** (planned)
-- **CI/CD** (GitHub, Jenkins – planned)
-- **Monitoring** (Prometheus & Grafana – planned)
+- **Kubernetes**
+- **CI/CD** (GitHub, Jenkins)
+- **Monitoring** (Prometheus & Grafana)
 
 ### AI & Data
 - **Python**
@@ -2012,6 +2012,7 @@ npx hardhat run scripts/deploy.js --network sepolia
 
 
 ---
+
 
 
 
